@@ -1,41 +1,41 @@
 auth:
   token_expiry: 3600
-  secret_key: ""
+  secret_key: "your-secret-key-here"
 
 logging:
-  level: INFO
+  level: DEBUG
   file: logs/security.log
 
 policies:
   policies:
-    - name: "allow_internal_communication"
+    - name: "allow_research_agents"
       conditions:
-        source_agent: {"regex": "^internal_.*"}
-        target_agent: {"regex": "^internal_.*"}
+        agent_id: {"regex": "^research_.*"}
+        action_type: {"in": ["execute_task", "research"]}
       effect: "allow"
       priority: 100
+
+    - name: "allow_analyst_tasks"
+      conditions:
+        agent_id: {"regex": "^analyst_.*"}
+        action_type: {"in": ["execute_task", "analyze"]}
+      effect: "allow"
+      priority: 90
+
+    - name: "allow_agent_communication"
+      conditions:
+        action_type: "send_message"
+        framework: "crewai"
+      effect: "allow"
+      priority: 80
 
     - name: "allow_basic_tasks"
       conditions:
         action_type: "execute_task"
         resource:
-          type: {"in": ["read", "process"]}
-      effect: "allow"
-      priority: 80
-
-    - name: "allow_research_tasks"
-      conditions:
-        action_type: "execute_task"
-        agent_id: "researcher"
+          type: {"in": ["read", "process", "research", "analyze"]}
       effect: "allow"
       priority: 70
-
-    - name: "allow_agent_communication"
-      conditions:
-        action_type: "send_message"
-        source_agent: {"regex": ".*"}
-      effect: "allow"
-      priority: 60
 
     - name: "default_deny"
       conditions: {}

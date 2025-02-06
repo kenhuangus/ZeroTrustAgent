@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "ZTA Demo"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "CrewAI Integration Test"
+
 [[workflows.workflow]]
 name = "ZTA Demo"
 author = "agent"
@@ -28,6 +32,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python examples/basic_usage.py"
+
+[[workflows.workflow]]
+name = "CrewAI Integration Test"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python examples/crewai_example.py"
 
 [deployment]
 run = ["sh", "-c", "python examples/basic_usage.py"]
