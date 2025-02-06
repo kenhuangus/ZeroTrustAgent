@@ -8,8 +8,7 @@ from ..core.policy import PolicyEngine
 from ..core.monitor import SecurityMonitor
 
 class CrewAIAdapter:
-    def __init__(self, 
-                 auth_manager: AuthenticationManager,
+    def __init__(self, auth_manager: AuthenticationManager, 
                  policy_engine: PolicyEngine,
                  security_monitor: SecurityMonitor):
         self.auth_manager = auth_manager
@@ -53,22 +52,34 @@ class CrewAIAdapter:
         
         return is_allowed
 
-    def secure_task_execution(self, task: Dict, agent_id: str, token: str) -> Optional[Dict]:
-        """Secure task execution wrapper for CrewAI tasks."""
-        if not self.validate_agent_action(agent_id, {"type": "execute_task", "resource": task}, token):
-            return None
+    def secure_task_execution(self, task: Dict, agent_id: str, token: str) -> bool:
+        # Validate token
+        claims = self.auth_manager.validate_token(token)
+        if not claims:
+            self.security_monitor.record_event(
+                "task_execution_failed",
+                {"reason": "invalid_token", "agent_id": agent_id},
+                "WARNING"
+            )
+            return False
 
-        # Record task execution
+        # Check policy
+        context = {
+            "action_type": "execute_task",
+            "resource": task,
+            "agent_id": agent_id,
+            "claims": claims
+        }
+
+        is_allowed = self.policy_engine.evaluate(context)
+
         self.security_monitor.record_event(
-            "task_execution",
-            {
-                "agent_id": agent_id,
-                "task_id": task.get("id"),
-                "task_type": task.get("type")
-            }
+            "task_execution_attempt",
+            {"task": task, "agent_id": agent_id, "allowed": is_allowed},
+            "INFO"
         )
 
-        return task
+        return is_allowed
 
     def validate_agent_communication(self, 
                                   source_agent: str, 
