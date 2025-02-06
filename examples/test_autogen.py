@@ -5,29 +5,29 @@ from zta_agent import initialize_agent
 def test_autogen_integration():
     # Initialize ZTA components
     zta_components = initialize_agent()
+    auth_manager = zta_components['auth_manager']
     autogen_adapter = zta_components['autogen_adapter']
     
     # Get authentication token
-    auth_manager = zta_components['auth_manager']
     token = auth_manager.authenticate({
-        "identity": "assistant_agent",
-        "secret": "secret123"
+        "identity": "assistant",
+        "secret": "test_secret"
     })
     
-    # Test conversation validation
-    conversation_id = "test_conv_1"
-    participants = {
-        "assistant": "secure_assistant",
-        "user": "secure_user"
+    # Test message validation
+    message = {
+        "type": "text",
+        "content": "Hello, let's solve a problem"
     }
     
-    is_valid = autogen_adapter.validate_conversation(
-        conversation_id=conversation_id,
-        participants=participants,
+    result = autogen_adapter.validate_agent_communication(
+        source_agent="assistant",
+        target_agent="user",
+        message=message,
         token=token
     )
     
-    print(f"Conversation validation result: {is_valid}")
+    print(f"AutoGen Integration Test Result: {result}")
 
 if __name__ == "__main__":
     test_autogen_integration()
