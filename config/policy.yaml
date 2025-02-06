@@ -1,0 +1,50 @@
+auth:
+  token_expiry: 3600  # Token expiry in seconds
+  secret_key: ""  # Will be auto-generated if not provided
+
+logging:
+  level: INFO
+  file: logs/security.log
+
+policies:
+  policies:
+    - name: "allow_internal_communication"
+      conditions:
+        source_agent: {"regex": "^internal_.*"}
+        target_agent: {"regex": "^internal_.*"}
+      effect: "allow"
+      priority: 100
+
+    - name: "restrict_external_calls"
+      conditions:
+        function_name: {"regex": "^external_.*"}
+        agent_id: {"regex": "^trusted_.*"}
+      effect: "deny"
+      priority: 90
+
+    - name: "allow_basic_tasks"
+      conditions:
+        action_type: "execute_task"
+        resource:
+          type: {"in": ["read", "process"]}
+      effect: "allow"
+      priority: 80
+
+    - name: "deny_sensitive_operations"
+      conditions:
+        action_type: {"in": ["delete", "modify"]}
+        resource:
+          type: {"in": ["system", "config"]}
+      effect: "deny"
+      priority: 70
+
+    - name: "allow_authenticated_messages"
+      conditions:
+        message_type: {"in": ["text", "command"]}
+      effect: "allow"
+      priority: 60
+
+    - name: "default_deny"
+      conditions: {}
+      effect: "deny"
+      priority: 0
