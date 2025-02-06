@@ -37,22 +37,34 @@ class PolicyEngine:
                 return policy.effect.lower() == "allow"
         return False  # Default deny if no policy matches
 
+    def _get_nested_value(self, obj: Dict, path: str) -> Any:
+        """Get value from nested dictionary using dot notation."""
+        keys = path.split('.')
+        value = obj
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            else:
+                return None
+        return value
+
     def _matches_conditions(self, conditions: Dict, context: Dict) -> bool:
         """Check if context matches policy conditions."""
         for key, condition in conditions.items():
-            if key not in context:
+            context_value = self._get_nested_value(context, key)
+            if context_value is None:
                 return False
-                
+
             if isinstance(condition, dict):
                 operator = list(condition.keys())[0]
                 value = condition[operator]
-                
-                if not self._evaluate_condition(context[key], operator, value):
+
+                if not self._evaluate_condition(context_value, operator, value):
                     return False
             else:
-                if context[key] != condition:
+                if context_value != condition:
                     return False
-                    
+
         return True
 
     def _evaluate_condition(self, actual_value: Any, operator: str, expected_value: Any) -> bool:
@@ -69,10 +81,10 @@ class PolicyEngine:
             "regex": lambda x, y: bool(re.match(y, str(x))),
             "contains": lambda x, y: y in x
         }
-        
+
         if operator not in operators:
             raise ValueError(f"Unsupported operator: {operator}")
-            
+
         return operators[operator](actual_value, expected_value)
 
     def add_policy(self, policy: Policy) -> None:

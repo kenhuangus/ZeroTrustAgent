@@ -29,13 +29,14 @@ class AutoGenAdapter:
             )
             return False
 
-        # Check policy
+        # Check policy with framework context
         context = {
             "action_type": "send_message",
             "source_agent": source_agent,
             "target_agent": target_agent,
             "message": message,
-            "claims": claims
+            "claims": claims,
+            "framework": "autogen"  # Add framework context
         }
 
         is_allowed = self.policy_engine.evaluate(context)
@@ -63,7 +64,8 @@ class AutoGenAdapter:
             {
                 "sender_id": sender_id,
                 "receiver_id": receiver_id,
-                "message_type": message.get("type")
+                "message_type": message.get("type"),
+                "framework": "autogen"  # Add framework context
             }
         )
 

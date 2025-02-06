@@ -8,34 +8,50 @@ logging:
 
 policies:
   policies:
+    - name: "deny_system_messages"
+      conditions:
+        action_type: "send_message"
+        message.type: {"regex": "^system$"}
+      effect: "deny"
+      priority: 200
+
+    - name: "allow_autogen_communication"
+      conditions:
+        action_type: "send_message"
+        source_agent: {"regex": "^(assistant|user).*"}
+        target_agent: {"regex": "^(assistant|user).*"}
+        message.type: {"regex": "^(text|function_call)$"}
+        framework: "autogen"
+      effect: "allow"
+      priority: 100
+
     - name: "allow_research_agents"
       conditions:
         agent_id: {"regex": "^research_.*"}
         action_type: {"in": ["execute_task", "research"]}
       effect: "allow"
-      priority: 100
+      priority: 90
 
     - name: "allow_analyst_tasks"
       conditions:
         agent_id: {"regex": "^analyst_.*"}
         action_type: {"in": ["execute_task", "analyze"]}
       effect: "allow"
-      priority: 90
+      priority: 80
 
     - name: "allow_agent_communication"
       conditions:
         action_type: "send_message"
         framework: "crewai"
       effect: "allow"
-      priority: 80
+      priority: 70
 
     - name: "allow_basic_tasks"
       conditions:
         action_type: "execute_task"
-        resource:
-          type: {"in": ["read", "process", "research", "analyze"]}
+        resource.type: {"in": ["read", "process", "research", "analyze"]}
       effect: "allow"
-      priority: 70
+      priority: 60
 
     - name: "default_deny"
       conditions: {}
