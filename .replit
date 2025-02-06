@@ -19,6 +19,10 @@ args = "ZTA Demo"
 task = "workflow.run"
 args = "CrewAI Integration Test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "AutoGen Integration Test"
+
 [[workflows.workflow]]
 name = "ZTA Demo"
 author = "agent"
@@ -46,6 +50,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python examples/crewai_example.py"
+
+[[workflows.workflow]]
+name = "AutoGen Integration Test"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python examples/test_autogen.py"
 
 [deployment]
 run = ["sh", "-c", "python examples/basic_usage.py"]
