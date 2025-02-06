@@ -3606,6 +3606,7 @@ dependencies = [
     { name = "pyautogen" },
     { name = "pyjwt" },
     { name = "pyyaml" },
+    { name = "tenacity" },
 ]
 
 [package.metadata]
@@ -3620,4 +3621,5 @@ requires-dist = [
     { name = "pyautogen", specifier = ">=0.7.3" },
     { name = "pyjwt", specifier = ">=2.10.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "tenacity", specifier = ">=9.0.0" },
 ]

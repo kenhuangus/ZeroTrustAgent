@@ -15,6 +15,7 @@ dependencies = [
     "pyautogen>=0.7.3",
     "pyjwt>=2.10.1",
     "pyyaml>=6.0.2",
+    "tenacity>=9.0.0",
 ]
 
 [build-system]

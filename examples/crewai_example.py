@@ -9,6 +9,8 @@ from zta_agent.tools.search_tool import SecureSearchTool
 import logging
 import sys
 import os
+import time
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Setup logging with more detailed configuration
 logging.basicConfig(
@@ -28,45 +30,66 @@ def create_secure_agent(agent_id: str, token: str):
     """Create a secure agent with ZTA validation."""
     logger.info(f"Creating secure agent: {agent_id}")
 
-    # Initialize tools and models
-    tools = [SecureSearchTool()]
+    try:
+        # Initialize tools and models with retry logic
+        tools = [SecureSearchTool()]
 
-    llm = ChatOpenAI(
-        model="gpt-3.5-turbo",
-        temperature=0.7
-    )
+        # Configure OpenAI with proper retry settings
+        llm = ChatOpenAI(
+            model="gpt-3.5-turbo",
+            temperature=0.7,
+            request_timeout=120,
+            max_retries=5
+        )
 
-    agent = Agent(
-        role="Security Researcher",
-        goal="Research and analyze security practices securely and efficiently",
-        backstory="An AI security researcher with expertise in analyzing security practices and implementing secure solutions",
-        verbose=True,
-        allow_delegation=False,
-        tools=tools,
-        llm=llm
-    )
+        agent = Agent(
+            role="Security Researcher",
+            goal="Research and analyze security practices securely and efficiently",
+            backstory="An AI security researcher with expertise in analyzing security practices and implementing secure solutions",
+            verbose=True,
+            allow_delegation=False,
+            tools=tools,
+            llm=llm
+        )
 
-    return agent
+        # Add significant delay after agent creation to avoid rate limits
+        time.sleep(5)  # Increased delay to 5 seconds
+        return agent
+    except Exception as e:
+        logger.error(f"Error creating agent {agent_id}: {str(e)}")
+        raise
 
+@retry(
+    wait=wait_exponential(multiplier=2, min=4, max=120),
+    stop=stop_after_attempt(5),
+    reraise=True
+)
 def create_secure_task(task_description: str, agent: Agent, agent_id: str, token: str) -> Task:
     """Create a task with security validation."""
     logger.info(f"Creating secure task for agent {agent_id}")
 
-    # Validate the task creation
-    task_context = {
-        'type': 'research' if 'research' in task_description.lower() else 'analyze',
-        'description': task_description
-    }
+    try:
+        # Validate the task creation
+        task_context = {
+            'type': 'research' if 'research' in task_description.lower() else 'analyze',
+            'description': task_description
+        }
 
-    if crewai_adapter.secure_task_execution(task_context, agent_id, token):
-        logger.info(f"Task creation approved for agent {agent_id}")
-        return Task(
-            description=task_description,
-            agent=agent
-        )
-    else:
-        logger.warning(f"Task creation denied for agent {agent_id}")
-        raise PermissionError(f"Security policy violation for task: {task_description}")
+        if crewai_adapter.secure_task_execution(task_context, agent_id, token):
+            logger.info(f"Task creation approved for agent {agent_id}")
+            # Add delay after successful task creation
+            time.sleep(3)  # Increased delay to 3 seconds
+            return Task(
+                description=task_description,
+                expected_output="A detailed report with findings and recommendations",
+                agent=agent
+            )
+        else:
+            logger.warning(f"Task creation denied for agent {agent_id}")
+            raise PermissionError(f"Security policy violation for task: {task_description}")
+    except Exception as e:
+        logger.error(f"Error creating task for agent {agent_id}: {str(e)}")
+        raise
 
 def main():
     try:
@@ -86,34 +109,46 @@ def main():
 
         logger.info("Authentication successful")
 
-        # Create secure agents
-        researcher = create_secure_agent("research_agent", token)
-        analyst = create_secure_agent("analyst_agent", token)
-
         try:
+            # Create secure agents with retry logic and increased delays
+            logger.info("Creating research agent...")
+            researcher = create_secure_agent("research_agent", token)
+            time.sleep(5)  # Increased delay between agent creations
+
+            logger.info("Creating analyst agent...")
+            analyst = create_secure_agent("analyst_agent", token)
+            time.sleep(5)  # Increased delay after last agent creation
+
             # Create tasks with security validation
+            logger.info("Creating research task...")
             research_task = create_secure_task(
                 "Research current AI security best practices and create a detailed report",
                 researcher,
                 "research_agent",
                 token
             )
+            time.sleep(3)  # Add delay between task creations
 
+            logger.info("Creating analysis task...")
             analysis_task = create_secure_task(
                 "Analyze the security findings and provide recommendations",
                 analyst,
                 "analyst_agent",
                 token
             )
+            time.sleep(3)  # Add delay between task creation and crew setup
 
-            # Create and run crew
+            # Create and run crew with proper error handling
             logger.info("Creating and starting crew...")
             crew = Crew(
                 agents=[researcher, analyst],
                 tasks=[research_task, analysis_task],
                 verbose=True,
-                process=Process.sequential
+                process=Process.sequential  # Ensure sequential execution to avoid concurrent API calls
             )
+
+            # Add delay before starting crew execution
+            time.sleep(5)  # Increased delay before crew execution
 
             result = crew.kickoff()
             logger.info("Crew execution completed")
