@@ -10,10 +10,13 @@ dependencies = [
     "hatch>=1.14.0",
     "langchain>=0.1.0",
     "langchain-community>=0.0.10",
+    "langchain-ollama>=0.2.3",
     "langchain-openai>=0.0.2",
     "openai>=1.0.0",
     "pyautogen>=0.7.3",
+    "pydantic>=2.10.6",
     "pyjwt>=2.10.1",
+    "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "tenacity>=9.0.0",
 ]

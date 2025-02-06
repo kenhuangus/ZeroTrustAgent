@@ -4,6 +4,7 @@ CrewAI Integration Example with Zero Trust Security Agent
 
 from crewai import Agent, Task, Crew, Process
 from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatOllama
 from zta_agent import initialize_agent
 from zta_agent.tools.search_tool import SecureSearchTool
 import logging
@@ -11,6 +12,10 @@ import sys
 import os
 import time
 from tenacity import retry, wait_exponential, stop_after_attempt
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Setup logging with more detailed configuration
 logging.basicConfig(
@@ -26,6 +31,75 @@ zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
 
+def get_llm():
+    """Get the appropriate LLM based on configuration."""
+    # Check if remote LLM is enabled in .env
+    use_remote_llm = os.getenv('USE_REMOTE_LLM', 'true').lower() == 'true'  # Default to true for Replit
+
+    if use_remote_llm:
+        logger.info("Using OpenAI as LLM provider")
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if not openai_key:
+            raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY in your environment.")
+
+        try:
+            return ChatOpenAI(
+                model="gpt-3.5-turbo",
+                temperature=0.7,
+                request_timeout=120,
+                max_retries=5
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI: {str(e)}")
+            raise
+
+    # If remote LLM is disabled, try Ollama
+    logger.info("Remote LLM disabled. Attempting to use local Ollama (llama2)")
+    try:
+        logger.debug("Creating Ollama instance with llama2 model")
+        ollama = ChatOllama(
+            model="llama2",
+            timeout=30,
+            base_url="http://localhost:11434",
+            temperature=0.7
+        )
+
+        # Test the Ollama connection with retry logic
+        try:
+            logger.debug("Testing Ollama connection...")
+            for attempt in range(3):
+                try:
+                    test_response = ollama.invoke("test")
+                    logger.info("Successfully connected to Ollama")
+                    return ollama
+                except Exception as e:
+                    if attempt < 2:
+                        logger.warning(f"Ollama connection attempt {attempt + 1} failed: {str(e)}")
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        raise
+        except Exception as e:
+            logger.error(f"All Ollama connection attempts failed: {str(e)}")
+            raise
+
+    except Exception as e:
+        logger.warning(f"Failed to initialize Ollama: {str(e)}")
+
+        # If we have OpenAI credentials, use as fallback
+        if os.getenv('OPENAI_API_KEY'):
+            logger.info("Falling back to OpenAI as LLM provider")
+            return ChatOpenAI(
+                model="gpt-3.5-turbo",
+                temperature=0.7,
+                request_timeout=120,
+                max_retries=5
+            )
+        else:
+            raise RuntimeError(
+                "Failed to initialize local Ollama and no OpenAI API key available. "
+                "Please either ensure Ollama is running locally or set up OpenAI credentials."
+            )
+
 def create_secure_agent(agent_id: str, token: str):
     """Create a secure agent with ZTA validation."""
     logger.info(f"Creating secure agent: {agent_id}")
@@ -34,13 +108,8 @@ def create_secure_agent(agent_id: str, token: str):
         # Initialize tools and models with retry logic
         tools = [SecureSearchTool()]
 
-        # Configure OpenAI with proper retry settings
-        llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
-            temperature=0.7,
-            request_timeout=120,
-            max_retries=5
-        )
+        # Get the configured LLM
+        llm = get_llm()
 
         agent = Agent(
             role="Security Researcher",

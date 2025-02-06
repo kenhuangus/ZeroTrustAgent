@@ -3,9 +3,9 @@ Custom tools for CrewAI integration
 """
 
 from typing import Any, ClassVar, Type
-from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.tools import DuckDuckGoSearchRun
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 from tenacity import retry, wait_exponential, stop_after_attempt
 import logging
 

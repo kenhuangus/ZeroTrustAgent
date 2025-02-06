@@ -1394,6 +1394,19 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-ollama"
+version = "0.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "ollama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/76/dfcf5f09ba2f7651161110ba5ddb621e92634f9fb34e4ad919ae0428205a/langchain_ollama-0.2.3.tar.gz", hash = "sha256:d13fe8735176b652ca6e6656d7902c1265e8c0601097569f7c95433f3d034b38", size = 17231 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/72/f7301340a544fea1c139c64590044f0beb5bfba889b8f6e50766b933e660/langchain_ollama-0.2.3-py3-none-any.whl", hash = "sha256:c47700ca68b013358b1e954493ecafb3bd10fa2cda71a9f15ba7897587a9aab2", size = 19543 },
+]
+
+[[package]]
 name = "langchain-openai"
 version = "0.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1851,6 +1864,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6d/fa/fbf4001037904031639e6bfbfc02badfc7e12f137a8afa254df6c4c8a670/oauthlib-3.2.2.tar.gz", hash = "sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918", size = 177352 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/80/cab10959dc1faead58dc8384a781dfbf93cb4d33d50988f7a69f1b7c9bbe/oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca", size = 151688 },
+]
+
+[[package]]
+name = "ollama"
+version = "0.4.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/6d/dc77539c735bbed5d0c873fb029fb86aa9f0163df169b34152914331c369/ollama-0.4.7.tar.gz", hash = "sha256:891dcbe54f55397d82d289c459de0ea897e103b86a3f1fad0fdb1895922a75ff", size = 12843 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/83/c3ffac86906c10184c88c2e916460806b072a2cfe34cdcaf3a0c0e836d39/ollama-0.4.7-py3-none-any.whl", hash = "sha256:85505663cca67a83707be5fb3aeff0ea72e67846cea5985529d8eca4366564a1", size = 13210 },
 ]
 
 [[package]]
@@ -3601,10 +3627,13 @@ dependencies = [
     { name = "hatch" },
     { name = "langchain" },
     { name = "langchain-community" },
+    { name = "langchain-ollama" },
     { name = "langchain-openai" },
     { name = "openai" },
     { name = "pyautogen" },
+    { name = "pydantic" },
     { name = "pyjwt" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "tenacity" },
 ]
@@ -3616,10 +3645,13 @@ requires-dist = [
     { name = "hatch", specifier = ">=1.14.0" },
     { name = "langchain", specifier = ">=0.1.0" },
     { name = "langchain-community", specifier = ">=0.0.10" },
+    { name = "langchain-ollama", specifier = ">=0.2.3" },
     { name = "langchain-openai", specifier = ">=0.0.2" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "pyautogen", specifier = ">=0.7.3" },
+    { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pyjwt", specifier = ">=2.10.1" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "tenacity", specifier = ">=9.0.0" },
 ]
