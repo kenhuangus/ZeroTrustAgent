@@ -15,37 +15,46 @@ def test_crewai_integration():
         "identity": "researcher",
         "secret": "test_secret"
     })
-    print(f"Token obtained: {token[:20]}...")
+    print(f"Authentication token obtained successfully")
     
-    # Test task execution
+    # Test different task types
+    tasks = [
+        {
+            "id": "research_task_1",
+            "type": "research",
+            "description": "Research AI security patterns"
+        },
+        {
+            "id": "analysis_task_1",
+            "type": "analysis",
+            "description": "Analyze security findings"
+        }
+    ]
+    
     print("\nTesting Task Execution...")
-    task_data = {
-        "id": "research_task_1",
-        "type": "research",
-        "description": "Research AI security patterns"
-    }
-    
-    result = crewai_adapter.secure_task_execution(
-        task=task_data,
-        agent_id="researcher",
-        token=token
-    )
-    print(f"Task execution allowed: {result}")
+    for task in tasks:
+        result = crewai_adapter.secure_task_execution(
+            task=task,
+            agent_id="researcher",
+            token=token
+        )
+        print(f"Task {task['id']} execution allowed: {result}")
     
     # Test agent communication
     print("\nTesting Agent Communication...")
-    message = {
-        "type": "text",
-        "content": "Research findings"
-    }
+    messages = [
+        {"type": "text", "content": "Research findings"},
+        {"type": "command", "content": "analyze_data()"}
+    ]
     
-    comm_result = crewai_adapter.validate_agent_communication(
-        source_agent="researcher",
-        target_agent="analyst",
-        message=message,
-        token=token
-    )
-    print(f"Agent communication allowed: {comm_result}")
+    for msg in messages:
+        comm_result = crewai_adapter.validate_agent_communication(
+            source_agent="researcher",
+            target_agent="analyst",
+            message=msg,
+            token=token
+        )
+        print(f"Agent communication for {msg['type']} message allowed: {comm_result}")
 
 if __name__ == "__main__":
     test_crewai_integration()
