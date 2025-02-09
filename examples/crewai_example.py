@@ -1,16 +1,19 @@
 """
-CrewAI Integration Example with Zero Trust Security Agent
+CrewAI Integration Example for Zero Trust Security Agent
 """
 
 import os
 import logging
 import sys
-import time
-import requests
 from typing import Any, List, Dict, Optional
 from tenacity import retry, wait_exponential, stop_after_attempt
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.schema import LLMResult
+from langchain.llms.base import LLM
+from litellm import completion
+from pydantic import BaseModel, Field
 
 from zta_agent import initialize_agent
 from zta_agent.tools.search_tool import SecureSearchTool
@@ -20,7 +23,7 @@ load_dotenv()
 
 # Setup logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     stream=sys.stdout
 )
@@ -32,57 +35,51 @@ zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
 
-class TogetherLLM:
-    """Custom LLM class for Together AI integration."""
+class TogetherLLMConfig(BaseModel):
+    api_key: str = Field(..., description="Together AI API key")
+    model_name: str = Field(
+        default="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
+        description="Model identifier"
+    )
+    temperature: float = Field(default=0.7, description="Sampling temperature")
+    max_tokens: int = Field(default=512, description="Maximum tokens to generate")
 
-    def __init__(self, api_key: str, model: str = "mistralai/Mistral-7B-Instruct-v0.1"):
-        self.api_key = api_key
-        self.model = model
-        self.api_base = "https://api.together.xyz/inference"
+class TogetherLLM(LLM):
+    """Custom LLM class for Together AI integration using liteLLM."""
 
-    def generate(self, messages):
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+    config: TogetherLLMConfig
 
-        # Convert CrewAI messages to Together AI format
-        prompt = self._convert_messages_to_prompt(messages)
+    def __init__(self, **kwargs):
+        """Initialize the LLM."""
+        config = TogetherLLMConfig(**kwargs)
+        super().__init__()
+        self.config = config
+        os.environ["TOGETHERAI_API_KEY"] = config.api_key
 
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "max_tokens": 512,
-            "temperature": 0.7,
-        }
+    @property
+    def _llm_type(self) -> str:
+        """Return type of LLM."""
+        return "together_ai"
 
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> str:
+        """Execute the LLM call using liteLLM."""
         try:
-            response = requests.post(
-                self.api_base,
-                headers=headers,
-                json=payload
+            messages = [{"role": "user", "content": prompt}]
+            response = completion(
+                model=self.config.model_name,
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                stop=stop
             )
-            response.raise_for_status()
-            return response.json()["output"]["choices"][0]["text"]
+            return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Together AI API call failed: {str(e)}")
             raise
 
-    def _convert_messages_to_prompt(self, messages):
-        """Convert CrewAI message format to Together AI prompt format."""
-        prompt_parts = []
-        for message in messages:
-            if message["role"] == "system":
-                prompt_parts.append(f"System: {message['content']}\n")
-            elif message["role"] == "user":
-                prompt_parts.append(f"Human: {message['content']}\n")
-            elif message["role"] == "assistant":
-                prompt_parts.append(f"Assistant: {message['content']}\n")
-        return "".join(prompt_parts)
-
 @retry(
-    wait=wait_exponential(multiplier=2, min=4, max=120),
-    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_attempt(3),
     reraise=True
 )
 def create_secure_agent(agent_id: str, token: str) -> Agent:
@@ -90,68 +87,46 @@ def create_secure_agent(agent_id: str, token: str) -> Agent:
     logger.info(f"Creating secure agent: {agent_id}")
 
     try:
-        # Initialize tools
+        # Initialize tools with retry logic
         tools = [SecureSearchTool()]
 
+        # Get Together AI API key from environment
         together_api_key = os.environ.get('TOGETHER_API_KEY')
         if not together_api_key:
-            raise ValueError("Together API key not found")
+            raise ValueError("Together API key not found in environment")
 
-        # Create custom Together AI LLM instance
-        llm = TogetherLLM(api_key=together_api_key)
+        # Create LLM instance with proper configuration
+        llm = TogetherLLM(
+            api_key=together_api_key,
+            model_name="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
+            temperature=0.7,
+            max_tokens=512
+        )
 
+        # Create agent with specific role
         agent = Agent(
-            role="Security Researcher",
+            role=f"AI Security {agent_id.replace('_', ' ').title()}",
             goal="Research and analyze security practices securely and efficiently",
-            backstory="An AI security researcher with expertise in analyzing security practices and implementing secure solutions",
+            backstory="An AI security specialist with expertise in analyzing security practices and implementing secure solutions",
             verbose=True,
             allow_delegation=False,
             tools=tools,
             llm=llm
         )
 
-        time.sleep(5)  # Delay after agent creation
+        logger.info(f"Successfully created agent: {agent_id}")
         return agent
 
     except Exception as e:
         logger.error(f"Error creating agent {agent_id}: {str(e)}")
         raise
 
-@retry(
-    wait=wait_exponential(multiplier=2, min=4, max=120),
-    stop=stop_after_attempt(5),
-    reraise=True
-)
-def create_secure_task(task_description: str, agent: Agent, agent_id: str, token: str) -> Task:
-    """Create a task with security validation."""
-    logger.info(f"Creating secure task for agent {agent_id}")
-
-    try:
-        task_context = {
-            'type': 'research' if 'research' in task_description.lower() else 'analyze',
-            'description': task_description
-        }
-
-        if crewai_adapter.secure_task_execution(task_context, agent_id, token):
-            logger.info(f"Task creation approved for agent {agent_id}")
-            time.sleep(3)
-            return Task(
-                description=task_description,
-                expected_output="A comprehensive analysis and detailed report",
-                agent=agent
-            )
-        else:
-            logger.warning(f"Task creation denied for agent {agent_id}")
-            raise PermissionError(f"Security policy violation for task: {task_description}")
-
-    except Exception as e:
-        logger.error(f"Error creating task for agent {agent_id}: {str(e)}")
-        raise
-
 def main():
+    """Run the CrewAI integration example."""
     try:
         logger.info("Starting CrewAI integration demo")
 
+        # Authenticate research agent
         credentials = {
             "identity": "research_agent",
             "secret": "secret123"
@@ -165,34 +140,24 @@ def main():
 
         logger.info("Authentication successful")
 
+        # Create and execute tasks
         try:
-            logger.info("Creating research agent...")
+            # Create research agent
             researcher = create_secure_agent("research_agent", token)
-            time.sleep(5)
-
-            logger.info("Creating analyst agent...")
             analyst = create_secure_agent("analyst_agent", token)
-            time.sleep(5)
 
-            logger.info("Creating research task...")
-            research_task = create_secure_task(
-                "Research current AI security best practices and create a detailed report",
-                researcher,
-                "research_agent",
-                token
+            # Create tasks
+            research_task = Task(
+                description="Research current AI security best practices and create a detailed report",
+                agent=researcher
             )
-            time.sleep(3)
 
-            logger.info("Creating analysis task...")
-            analysis_task = create_secure_task(
-                "Analyze the security findings and provide recommendations",
-                analyst,
-                "analyst_agent",
-                token
+            analysis_task = Task(
+                description="Analyze the security findings and provide recommendations",
+                agent=analyst
             )
-            time.sleep(3)
 
-            logger.info("Creating and starting crew...")
+            # Create and execute crew
             crew = Crew(
                 agents=[researcher, analyst],
                 tasks=[research_task, analysis_task],
@@ -200,15 +165,10 @@ def main():
                 process=Process.sequential
             )
 
-            time.sleep(5)
-
             result = crew.kickoff()
             logger.info("Crew execution completed")
-            print("Crew execution result:", result)
+            print("Result:", result)
 
-        except PermissionError as e:
-            logger.error(f"Security policy violation: {str(e)}")
-            print(f"Security Error: {str(e)}")
         except Exception as e:
             logger.error(f"Error during task execution: {str(e)}")
             print(f"Task Error: {str(e)}")

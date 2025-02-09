@@ -2,8 +2,8 @@
 Custom tools for CrewAI integration
 """
 
-from typing import Any, ClassVar, Type
-from langchain.tools import DuckDuckGoSearchRun
+from typing import Any, Dict
+from langchain_community.tools import DuckDuckGoSearchRun
 from crewai.tools import BaseTool
 from pydantic.v1 import BaseModel, Field
 from tenacity import retry, wait_exponential, stop_after_attempt
@@ -19,7 +19,7 @@ class SecureSearchTool(BaseTool):
     """A secure web search tool that uses DuckDuckGo."""
     name: str = "web_search"
     description: str = "Search the internet for information using DuckDuckGo"
-    input_schema: ClassVar[Type[BaseModel]] = SecureSearchInput
+    args_schema: BaseModel = SecureSearchInput
 
     def __init__(self):
         super().__init__()
@@ -30,7 +30,7 @@ class SecureSearchTool(BaseTool):
         stop=stop_after_attempt(3),
         reraise=True
     )
-    def _run(self, query: str) -> Any:
+    def _run(self, query: str) -> str:
         """Execute the search query with retry logic."""
         try:
             logger.info(f"Executing search query: {query}")
