@@ -13,7 +13,6 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema import LLMResult
 from langchain.llms.base import LLM
 from litellm import completion
-from pydantic import BaseModel, Field
 
 from zta_agent import initialize_agent
 from zta_agent.tools.search_tool import SecureSearchTool
@@ -35,41 +34,36 @@ zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
 
-class TogetherLLMConfig(BaseModel):
-    api_key: str = Field(..., description="Together AI API key")
-    model_name: str = Field(
-        default="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
-        description="Model identifier"
-    )
-    temperature: float = Field(default=0.7, description="Sampling temperature")
-    max_tokens: int = Field(default=512, description="Maximum tokens to generate")
 
 class TogetherLLM(LLM):
     """Custom LLM class for Together AI integration using liteLLM."""
 
-    config: TogetherLLMConfig
-
-    def __init__(self, **kwargs):
+    def __init__(self, api_key: str, temperature: float = 0.7, max_tokens: int = 512, 
+                 model_name: str = "together_ai/togethercomputer/Llama-2-7B-32K-Instruct"):
         """Initialize the LLM."""
-        config = TogetherLLMConfig(**kwargs)
         super().__init__()
-        self.config = config
-        os.environ["TOGETHERAI_API_KEY"] = config.api_key
+        self.api_key = api_key
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.model_name = model_name
+        os.environ["TOGETHERAI_API_KEY"] = api_key
 
     @property
     def _llm_type(self) -> str:
         """Return type of LLM."""
         return "together_ai"
 
-    def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> str:
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, 
+              run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> str:
         """Execute the LLM call using liteLLM."""
         try:
+            logger.debug(f"Sending prompt to Together AI: {prompt[:100]}...")
             messages = [{"role": "user", "content": prompt}]
             response = completion(
-                model=self.config.model_name,
+                model=self.model_name,
                 messages=messages,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
                 stop=stop
             )
             return response.choices[0].message.content
@@ -98,7 +92,6 @@ def create_secure_agent(agent_id: str, token: str) -> Agent:
         # Create LLM instance with proper configuration
         llm = TogetherLLM(
             api_key=together_api_key,
-            model_name="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
             temperature=0.7,
             max_tokens=512
         )
