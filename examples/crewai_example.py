@@ -3,17 +3,17 @@ CrewAI Integration Example with Zero Trust Security Agent
 """
 
 import os
-from crewai import Agent, Task, Crew, Process
-from langchain_openai import ChatOpenAI
-from langchain_community.chat_models import ChatOllama
-import google.generativeai as genai
-from zta_agent import initialize_agent
-from zta_agent.tools.search_tool import SecureSearchTool
 import logging
 import sys
 import time
+import requests
+from typing import Any, List, Dict, Optional
 from tenacity import retry, wait_exponential, stop_after_attempt
 from dotenv import load_dotenv
+from crewai import Agent, Task, Crew, Process
+
+from zta_agent import initialize_agent
+from zta_agent.tools.search_tool import SecureSearchTool
 
 # Load environment variables
 load_dotenv()
@@ -32,53 +32,73 @@ zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
 
-class GeminiChatModel:
-    """Wrapper for Google's Gemini model to make it compatible with CrewAI."""
+class TogetherLLM:
+    """Custom LLM class for Together AI integration."""
 
-    def __init__(self):
-        google_api_key = os.environ.get('GOOGLE_API_KEY')
-        if not google_api_key:
-            raise ValueError("Google API key not found")
+    def __init__(self, api_key: str, model: str = "mistralai/Mistral-7B-Instruct-v0.1"):
+        self.api_key = api_key
+        self.model = model
+        self.api_base = "https://api.together.xyz/inference"
 
-        logger.info("Initializing Gemini LLM...")
-        genai.configure(api_key=google_api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
-        self.temperature = 0.7
+    def generate(self, messages):
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
 
-    def complete(self, prompt):
-        """Complete a prompt."""
+        # Convert CrewAI messages to Together AI format
+        prompt = self._convert_messages_to_prompt(messages)
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "max_tokens": 512,
+            "temperature": 0.7,
+        }
+
         try:
-            response = self.model.generate_content(prompt)
-            return response.text
+            response = requests.post(
+                self.api_base,
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()["output"]["choices"][0]["text"]
         except Exception as e:
-            logger.error(f"Error in Gemini generate: {str(e)}")
+            logger.error(f"Together AI API call failed: {str(e)}")
             raise
 
-    def __call__(self, prompt):
-        """Make the model callable for CrewAI compatibility."""
-        return self.complete(prompt)
-
-def get_llm():
-    """Get the Gemini LLM."""
-    try:
-        return GeminiChatModel()
-    except Exception as e:
-        logger.error(f"Failed to initialize Gemini: {str(e)}")
-        raise
+    def _convert_messages_to_prompt(self, messages):
+        """Convert CrewAI message format to Together AI prompt format."""
+        prompt_parts = []
+        for message in messages:
+            if message["role"] == "system":
+                prompt_parts.append(f"System: {message['content']}\n")
+            elif message["role"] == "user":
+                prompt_parts.append(f"Human: {message['content']}\n")
+            elif message["role"] == "assistant":
+                prompt_parts.append(f"Assistant: {message['content']}\n")
+        return "".join(prompt_parts)
 
 @retry(
     wait=wait_exponential(multiplier=2, min=4, max=120),
     stop=stop_after_attempt(5),
     reraise=True
 )
-def create_secure_agent(agent_id: str, token: str):
+def create_secure_agent(agent_id: str, token: str) -> Agent:
     """Create a secure agent with ZTA validation."""
     logger.info(f"Creating secure agent: {agent_id}")
 
     try:
-        # Initialize tools and models
+        # Initialize tools
         tools = [SecureSearchTool()]
-        llm = get_llm()
+
+        together_api_key = os.environ.get('TOGETHER_API_KEY')
+        if not together_api_key:
+            raise ValueError("Together API key not found")
+
+        # Create custom Together AI LLM instance
+        llm = TogetherLLM(api_key=together_api_key)
 
         agent = Agent(
             role="Security Researcher",
@@ -117,7 +137,7 @@ def create_secure_task(task_description: str, agent: Agent, agent_id: str, token
             time.sleep(3)
             return Task(
                 description=task_description,
-                expected_output="A comprehensive report detailing findings and recommendations",
+                expected_output="A comprehensive analysis and detailed report",
                 agent=agent
             )
         else:
