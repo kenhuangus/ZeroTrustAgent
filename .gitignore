@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+virtualenv/
+Virtualenv/
+Scripts/
+Include/
+Lib/
+
+# Package distribution files
+dist/
+build/
+*.egg
+*.egg-info
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+htmlcov/
+
+# IDE-specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+
+# OS generated files
+Thumbs.db
+
+# Python Distribution
+*.whl
+
+# MyPy cache
+.mypy_cache/
+
+# dotenv file (VERY IMPORTANT - DO NOT COMMIT SECRETS!)
+.env
+
+# Compiled Object files
+*.o
+*.ko
+
+# Distribution archives
+*.tar.gz
+*.zip
+*.tar.bz2
+
+# PyInstaller files
+*.spec
