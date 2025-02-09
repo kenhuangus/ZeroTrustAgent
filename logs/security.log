@@ -1,0 +1,7 @@
+2025-02-09 15:10:19,781 - zta_agent - INFO - Logging system configured
+2025-02-09 15:10:19,781 - zta_agent - INFO - Authentication Manager initialized
+2025-02-09 15:10:19,781 - zta_agent - INFO - Policy Engine initialized
+2025-02-09 15:10:19,781 - zta_agent - INFO - Security Monitor initialized
+2025-02-09 15:10:19,781 - zta_agent - INFO - All components initialized successfully
+2025-02-09 15:10:19,781 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}
+2025-02-09 15:10:19,781 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}

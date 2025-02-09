@@ -49,7 +49,13 @@ graph TD
 ## Installation & Setup
 
 ```bash
-pip install zta-agent
+git clone https://github.com/kenhuangus/ZeroTrustAgent.git
+cd ZeroTrustAgent
+pip install build
+python -m build
+pip install -e .
+
+
 ```
 
 ### Basic Configuration
@@ -83,6 +89,11 @@ pip install zta-agent
           effect: "allow"
           priority: 90
     ```
+4. **Sample test crewai integration with Zero Truse agent**
+
+```bash
+python ./examples/test_crewai.py
+```
 
 ## Framework Integration Guide
 
