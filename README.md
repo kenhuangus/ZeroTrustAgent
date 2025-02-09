@@ -93,6 +93,14 @@ pip install -e .
 
 ```bash
 python ./examples/test_crewai.py
+
+```
+or you can test more integration using
+
+```bash
+
+python ./examples/crewai_example.py
+
 ```
 
 ## Framework Integration Guide

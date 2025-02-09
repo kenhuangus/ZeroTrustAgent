@@ -5,3 +5,63 @@
 2025-02-09 15:10:19,781 - zta_agent - INFO - All components initialized successfully
 2025-02-09 15:10:19,781 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}
 2025-02-09 15:10:19,781 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}
+2025-02-09 15:40:49,736 - zta_agent - INFO - Logging system configured
+2025-02-09 15:40:49,743 - zta_agent - INFO - Authentication Manager initialized
+2025-02-09 15:40:49,747 - zta_agent - INFO - Policy Engine initialized
+2025-02-09 15:40:49,747 - zta_agent - INFO - Security Monitor initialized
+2025-02-09 15:40:49,747 - zta_agent - INFO - All components initialized successfully
+2025-02-09 15:40:49,754 - __main__ - INFO - Starting CrewAI integration demo
+2025-02-09 15:40:49,754 - __main__ - INFO - Authenticating research agent...
+2025-02-09 15:40:49,754 - __main__ - INFO - Authentication successful
+2025-02-09 15:40:49,754 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:40:49,897 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment
+2025-02-09 15:40:53,903 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:40:53,905 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment
+2025-02-09 15:40:57,909 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:40:57,910 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment
+2025-02-09 15:40:57,910 - __main__ - ERROR - Error during task execution: Together AI API key not found in environment
+2025-02-09 15:43:23,502 - zta_agent - INFO - Logging system configured
+2025-02-09 15:43:23,504 - zta_agent - INFO - Authentication Manager initialized
+2025-02-09 15:43:23,504 - zta_agent - INFO - Policy Engine initialized
+2025-02-09 15:43:23,504 - zta_agent - INFO - Security Monitor initialized
+2025-02-09 15:43:23,504 - zta_agent - INFO - All components initialized successfully
+2025-02-09 15:43:23,511 - __main__ - INFO - Starting CrewAI integration demo
+2025-02-09 15:43:23,511 - __main__ - INFO - Authenticating research agent...
+2025-02-09 15:43:23,511 - __main__ - INFO - Authentication successful
+2025-02-09 15:43:23,511 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:43:23,525 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment or config
+2025-02-09 15:43:27,530 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:43:27,531 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment or config
+2025-02-09 15:43:31,534 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:43:31,535 - __main__ - ERROR - Error creating agent research_agent: Together AI API key not found in environment or config
+2025-02-09 15:43:31,537 - __main__ - ERROR - Error during task execution: Together AI API key not found in environment or config
+2025-02-09 15:44:57,437 - zta_agent - INFO - Logging system configured
+2025-02-09 15:44:57,437 - zta_agent - INFO - Authentication Manager initialized
+2025-02-09 15:44:57,437 - zta_agent - INFO - Policy Engine initialized
+2025-02-09 15:44:57,447 - zta_agent - INFO - Security Monitor initialized
+2025-02-09 15:44:57,447 - zta_agent - INFO - All components initialized successfully
+2025-02-09 15:44:57,452 - __main__ - INFO - Starting CrewAI integration demo
+2025-02-09 15:44:57,455 - __main__ - INFO - Authenticating research agent...
+2025-02-09 15:44:57,455 - __main__ - INFO - Authentication successful
+2025-02-09 15:44:57,457 - __main__ - INFO - Creating secure agent: research_agent
+2025-02-09 15:44:57,475 - root - ERROR - Failed to get supported params: argument of type 'NoneType' is not iterable
+2025-02-09 15:44:57,480 - __main__ - INFO - Successfully created agent: research_agent
+2025-02-09 15:44:57,480 - __main__ - INFO - Creating secure agent: analyst_agent
+2025-02-09 15:44:57,480 - root - ERROR - Failed to get supported params: argument of type 'NoneType' is not iterable
+2025-02-09 15:44:57,480 - __main__ - INFO - Successfully created agent: analyst_agent
+2025-02-09 15:44:57,480 - __main__ - INFO - Creating secure task for agent: research_agent
+2025-02-09 15:44:57,480 - __main__ - ERROR - Error creating secure task for agent research_agent: 1 validation error for Task
+expected_output
+  Field required [type=missing, input_value={'description': 'Research...nting secure solutions)}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
+2025-02-09 15:44:57,480 - __main__ - ERROR - Error during task execution: 1 validation error for Task
+expected_output
+  Field required [type=missing, input_value={'description': 'Research...nting secure solutions)}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.10/v/missing
+2025-02-09 15:47:36,418 - zta_agent - INFO - Logging system configured
+2025-02-09 15:47:36,418 - zta_agent - INFO - Authentication Manager initialized
+2025-02-09 15:47:36,418 - zta_agent - INFO - Policy Engine initialized
+2025-02-09 15:47:36,418 - zta_agent - INFO - Security Monitor initialized
+2025-02-09 15:47:36,418 - zta_agent - INFO - All components initialized successfully
+2025-02-09 15:47:36,418 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}
+2025-02-09 15:47:36,418 - zta_agent.core.monitor - INFO - Security event recorded: task_execution_failed - {'reason': 'invalid_token', 'agent_id': 'researcher'}

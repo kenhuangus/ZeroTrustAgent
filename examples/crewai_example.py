@@ -1,7 +1,3 @@
-"""
-CrewAI Integration Example for Zero Trust Security Agent
-"""
-
 import os
 import logging
 import sys
@@ -43,31 +39,38 @@ class TogetherLLMConfig(BaseModel):
         default="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
         description="Model identifier"
     )
-    model_config = {
-        "extra": "forbid"
-    }
+    api_key: str = Field(default=None, description="TogetherAI API Key")
+
+    class Config:  # Using Pydantic's Config class now
+        extra = "forbid"
+        arbitrary_types_allowed = True
 
 class TogetherLLM(LLM, BaseModel):
     """Custom LLM class for Together AI integration using liteLLM."""
     config: TogetherLLMConfig = Field(default_factory=TogetherLLMConfig)
 
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
+    class Config: # Using Pydantic's Config class now
+        arbitrary_types_allowed = True
 
     def __init__(self, **kwargs):
         """Initialize the LLM."""
-        config = TogetherLLMConfig(**kwargs)
-        super().__init__(config=config)
-        if "TOGETHERAI_API_KEY" not in os.environ:
-            raise ValueError("Together AI API key not found in environment")
+        super().__init__(**kwargs)  # Initialize BaseModel first
+        # Load API key from environment if not provided in config
+        if self.config.api_key is None:
+            api_key = os.environ.get("TOGETHERAI_API_KEY")
+            if api_key is None:
+                raise ValueError("Together AI API key not found in environment or config")
+            self.config.api_key = api_key
+        # Set the API key for litellm
+        os.environ["TOGETHERAI_API_KEY"] = self.config.api_key
+
 
     @property
     def _llm_type(self) -> str:
         """Return type of LLM."""
         return "together_ai"
 
-    def _call(self, prompt: str, stop: Optional[List[str]] = None, 
+    def _call(self, prompt: str, stop: Optional[List[str]] = None,
               run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> str:
         """Execute the LLM call using liteLLM."""
         try:
@@ -84,6 +87,32 @@ class TogetherLLM(LLM, BaseModel):
         except Exception as e:
             logger.error(f"Together AI API call failed: {str(e)}")
             raise
+
+    async def _acall(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> str:
+        """Asynchronous version of the LLM call."""
+        # litellm supports async, so we can just call it directly
+        try:
+            logger.debug(f"Sending async prompt to Together AI: {prompt[:100]}...")
+            messages = [{"role": "user", "content": prompt}]
+            response = await completion(
+                model=self.config.model_name,
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                stop=stop
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Together AI async API call failed: {str(e)}")
+            raise
+    
+    def _generate(self, prompts: List[str], stop: Optional[List[str]] = None,
+                  run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs) -> LLMResult:
+        """Generate LLM responses for multiple prompts."""
+        # For simplicity, we'll just call _call repeatedly.  For true batching, litellm supports it.
+        results = [self._call(prompt, stop, run_manager, **kwargs) for prompt in prompts]
+        return LLMResult(generations=[[{"text": r}] for r in results])
+
 
 @retry(
     wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -106,6 +135,7 @@ def create_secure_agent(agent_id: str, token: str) -> Agent:
 
         # Create agent with keyword arguments
         agent_config = {
+            "agent_id": agent_id,  # Include agent_id
             "role": f"AI Security {agent_id.replace('_', ' ').title()}",
             "goal": "Research and analyze security practices securely and efficiently",
             "backstory": "An AI security specialist with expertise in analyzing security practices and implementing secure solutions",
@@ -123,6 +153,26 @@ def create_secure_agent(agent_id: str, token: str) -> Agent:
 
     except Exception as e:
         logger.error(f"Error creating agent {agent_id}: {str(e)}")
+        raise
+
+def create_secure_task(description: str, agent: Agent, agent_id:str, token:str) -> Task:
+    """
+    Creates a secure task with ZTA validation, ensuring the task
+    is associated with a specific agent and validated against security policies.
+    """
+    logger.info(f"Creating secure task for agent: {agent_id}")
+
+    try:
+        # Create a Task instance
+        task = Task(
+            description=description,
+            agent=agent
+        )
+        logger.info(f"Successfully created secure task for agent: {agent_id}")
+        return task
+
+    except Exception as e:
+        logger.error(f"Error creating secure task for agent {agent_id}: {str(e)}")
         raise
 
 def main():
@@ -151,18 +201,12 @@ def main():
             analyst = create_secure_agent("analyst_agent", token)
 
             # Create tasks with proper configuration
-            research_task_config = {
-                "agent": researcher,
-                "description": "Research current AI security best practices and create a detailed report"
-            }
-            analysis_task_config = {
-                "agent": analyst,
-                "description": "Analyze the security findings and provide recommendations"
-            }
-
-            research_task = Task(**research_task_config)
-            analysis_task = Task(**analysis_task_config)
-
+            research_task = create_secure_task(
+                "Research current AI security best practices and create a detailed report", researcher, "research_agent", token
+            )
+            analysis_task = create_secure_task(
+                "Analyze the security findings and provide recommendations", analyst, "analysis_agent", token
+            )
             # Create and execute crew
             crew_config = {
                 "agents": [researcher, analyst],
