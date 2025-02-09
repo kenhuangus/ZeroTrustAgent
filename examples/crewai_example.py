@@ -13,6 +13,7 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema import LLMResult
 from langchain.llms.base import LLM
 from litellm import completion
+from pydantic import BaseModel, Field
 
 from zta_agent import initialize_agent
 from zta_agent.tools.search_tool import SecureSearchTool
@@ -34,19 +35,32 @@ zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
 
+class TogetherLLMConfig(BaseModel):
+    """Configuration for Together AI LLM."""
+    temperature: float = Field(default=0.7, description="Sampling temperature")
+    max_tokens: int = Field(default=512, description="Maximum tokens to generate")
+    model_name: str = Field(
+        default="together_ai/togethercomputer/Llama-2-7B-32K-Instruct",
+        description="Model identifier"
+    )
+    model_config = {
+        "extra": "forbid"
+    }
 
-class TogetherLLM(LLM):
+class TogetherLLM(LLM, BaseModel):
     """Custom LLM class for Together AI integration using liteLLM."""
+    config: TogetherLLMConfig = Field(default_factory=TogetherLLMConfig)
 
-    def __init__(self, api_key: str, temperature: float = 0.7, max_tokens: int = 512, 
-                 model_name: str = "together_ai/togethercomputer/Llama-2-7B-32K-Instruct"):
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
+
+    def __init__(self, **kwargs):
         """Initialize the LLM."""
-        super().__init__()
-        self.api_key = api_key
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.model_name = model_name
-        os.environ["TOGETHERAI_API_KEY"] = api_key
+        config = TogetherLLMConfig(**kwargs)
+        super().__init__(config=config)
+        if "TOGETHERAI_API_KEY" not in os.environ:
+            raise ValueError("Together AI API key not found in environment")
 
     @property
     def _llm_type(self) -> str:
@@ -60,10 +74,10 @@ class TogetherLLM(LLM):
             logger.debug(f"Sending prompt to Together AI: {prompt[:100]}...")
             messages = [{"role": "user", "content": prompt}]
             response = completion(
-                model=self.model_name,
+                model=self.config.model_name,
                 messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
                 stop=stop
             )
             return response.choices[0].message.content
@@ -84,28 +98,25 @@ def create_secure_agent(agent_id: str, token: str) -> Agent:
         # Initialize tools with retry logic
         tools = [SecureSearchTool()]
 
-        # Get Together AI API key from environment
-        together_api_key = os.environ.get('TOGETHER_API_KEY')
-        if not together_api_key:
-            raise ValueError("Together API key not found in environment")
-
         # Create LLM instance with proper configuration
         llm = TogetherLLM(
-            api_key=together_api_key,
             temperature=0.7,
             max_tokens=512
         )
 
-        # Create agent with specific role
-        agent = Agent(
-            role=f"AI Security {agent_id.replace('_', ' ').title()}",
-            goal="Research and analyze security practices securely and efficiently",
-            backstory="An AI security specialist with expertise in analyzing security practices and implementing secure solutions",
-            verbose=True,
-            allow_delegation=False,
-            tools=tools,
-            llm=llm
-        )
+        # Create agent with keyword arguments
+        agent_config = {
+            "role": f"AI Security {agent_id.replace('_', ' ').title()}",
+            "goal": "Research and analyze security practices securely and efficiently",
+            "backstory": "An AI security specialist with expertise in analyzing security practices and implementing secure solutions",
+            "verbose": True,
+            "allow_delegation": False,
+            "llm": llm,
+            "tools": tools
+        }
+
+        # Create agent with unpacked keyword arguments
+        agent = Agent(**agent_config)
 
         logger.info(f"Successfully created agent: {agent_id}")
         return agent
@@ -139,24 +150,28 @@ def main():
             researcher = create_secure_agent("research_agent", token)
             analyst = create_secure_agent("analyst_agent", token)
 
-            # Create tasks
-            research_task = Task(
-                description="Research current AI security best practices and create a detailed report",
-                agent=researcher
-            )
+            # Create tasks with proper configuration
+            research_task_config = {
+                "agent": researcher,
+                "description": "Research current AI security best practices and create a detailed report"
+            }
+            analysis_task_config = {
+                "agent": analyst,
+                "description": "Analyze the security findings and provide recommendations"
+            }
 
-            analysis_task = Task(
-                description="Analyze the security findings and provide recommendations",
-                agent=analyst
-            )
+            research_task = Task(**research_task_config)
+            analysis_task = Task(**analysis_task_config)
 
             # Create and execute crew
-            crew = Crew(
-                agents=[researcher, analyst],
-                tasks=[research_task, analysis_task],
-                verbose=True,
-                process=Process.sequential
-            )
+            crew_config = {
+                "agents": [researcher, analyst],
+                "tasks": [research_task, analysis_task],
+                "verbose": True,
+                "process": Process.sequential
+            }
+
+            crew = Crew(**crew_config)
 
             result = crew.kickoff()
             logger.info("Crew execution completed")

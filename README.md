@@ -1,33 +1,46 @@
+┌─────────────────┐     ┌──────────────────┐     ┌────────────────┐
+│   AI Framework  │────▶│  Framework       │────▶│  Core Security │
+│   (CrewAI,     │     │  Adapter         │     │  Components    │
+│    AutoGen)    │     │                  │     │                │
+└─────────────────┘     └──────────────────┘     └────────────────┘
+                                                        │
+                                                        ▼
+                                               ┌────────────────┐
+                                               │  Policies &    │
+                                               │  Monitoring    │
+                                               └────────────────┘
+```
+
+The ZTA architecture consists of:
+1. **Framework Adapters**: Interface between AI frameworks and security components
+2. **Core Security Components**: Handle authentication, authorization, and policy enforcement
+3. **Policy Engine**: Evaluates security policies against agent actions
+4. **Security Monitor**: Tracks and audits all security-relevant events
+
+## Installation & Setup
+
+```bash
 pip install zta-agent
 ```
 
-## Configuration
+### Basic Configuration
 
-### 1. Environment Setup
-
-Create a `.env` file from the template:
-
+1. Environment Setup
 ```bash
 cp .env.example .env
 ```
 
-Required environment variables:
+2. Configure your API keys in `.env`:
 ```
-TOGETHER_API_KEY=your_api_key_here  # Get from together.ai
+TOGETHER_API_KEY=your_api_key_here  # For LLM support
+OPENAI_API_KEY=your_api_key_here    # Optional, for OpenAI integration
 ```
 
-### 2. Policy Configuration
-
-Create `config/policy.yaml`:
-
+3. Create your policy configuration in `config/policy.yaml`:
 ```yaml
 auth:
-  token_expiry: 3600  # Token expiry in seconds
+  token_expiry: 3600
   secret_key: "your-secret-key-here"
-
-logging:
-  level: DEBUG
-  file: logs/security.log
 
 policies:
   policies:
@@ -37,50 +50,89 @@ policies:
         action_type: {"in": ["execute_task", "research"]}
       effect: "allow"
       priority: 90
-
-    - name: "deny_system_messages"
-      conditions:
-        action_type: "send_message"
-        message.type: {"regex": "^system$"}
-      effect: "deny"
-      priority: 200
 ```
 
-## Usage
+## Framework Integration Guide
 
-### Basic Usage
+### For AI Engineers & Framework Developers
+
+1. **Core Components** (`zta_agent/core/`):
+   - `AuthenticationManager`: Handles agent identity and token management
+   - `PolicyEngine`: Evaluates security policies
+   - `SecurityMonitor`: Tracks and audits agent activities
+
+2. **Integration Process**:
+   - Create new adapter in `zta_agent/integrations/`
+   - Implement security validation hooks
+   - Add comprehensive monitoring
+   - Follow existing patterns (see CrewAI/AutoGen examples)
+
+3. **Security Best Practices**:
+   - Follow Zero Trust principles
+   - Implement proper token validation
+   - Add detailed security event logging
+   - Follow policy enforcement patterns
+
+### Example Framework Integration
+
+Here's how to integrate a new AI framework with ZTA:
 
 ```python
-from zta_agent import initialize_agent
+from typing import Dict, Optional
+from ..core.auth import AuthenticationManager
+from ..core.policy import PolicyEngine
+from ..core.monitor import SecurityMonitor
 
-# Initialize components
-zta_components = initialize_agent()
-auth_manager = zta_components['auth_manager']
-policy_engine = zta_components['policy_engine']
-security_monitor = zta_components['security_monitor']
+class NewFrameworkAdapter:
+    def __init__(self, auth_manager: AuthenticationManager,
+                 policy_engine: PolicyEngine,
+                 security_monitor: SecurityMonitor):
+        self.auth_manager = auth_manager
+        self.policy_engine = policy_engine
+        self.security_monitor = security_monitor
 
-# Authenticate an agent
-token = auth_manager.authenticate({
-    "identity": "test_agent",
-    "secret": "test_secret"
-})
+    def validate_agent_action(self, agent_id: str, action: Dict, token: str) -> bool:
+        """Validate if an agent can perform a specific action."""
+        # 1. Validate authentication token
+        claims = self.auth_manager.validate_token(token)
+        if not claims:
+            self.security_monitor.record_event(
+                "unauthorized_access",
+                {"agent_id": agent_id, "action": action},
+                "WARNING"
+            )
+            return False
 
-# Record security events
-security_monitor.record_event(
-    "authentication_success",
-    {"agent_id": "test_agent"},
-    "INFO"
-)
+        # 2. Create security context
+        context = {
+            "agent_id": agent_id,
+            "action_type": action.get("type"),
+            "resource": action.get("resource"),
+            "claims": claims,
+            "framework": "your_framework_name"
+        }
+
+        # 3. Evaluate against policies
+        is_allowed = self.policy_engine.evaluate(context)
+
+        # 4. Log the event
+        self.security_monitor.record_event(
+            "action_validation",
+            {"context": context, "allowed": is_allowed},
+            "INFO"
+        )
+
+        return is_allowed
 ```
 
-### CrewAI Integration with Together AI
+### Integration Examples
 
+#### CrewAI Integration
 ```python
 from zta_agent import initialize_agent
 from crewai import Agent, Task, Crew
-from litellm import completion
 
-# Initialize components
+# Initialize ZTA components
 zta_components = initialize_agent()
 crewai_adapter = zta_components['crewai_adapter']
 auth_manager = zta_components['auth_manager']
@@ -91,27 +143,25 @@ token = auth_manager.authenticate({
     "secret": "your_secret"
 })
 
-# Create secure agent with Together AI
+# Create secure agent
 agent = create_secure_agent("research_agent", token)
 
-# Create and execute tasks
-task = create_secure_task(
-    "Research AI security best practices",
-    agent,
-    "research_agent",
-    token
+# Create and execute tasks with security validation
+task = Task(
+    agent=agent,
+    description="Research AI security patterns"
 )
 
 crew = Crew(
     agents=[agent],
-    tasks=[task],
-    process=Process.sequential
+    tasks=[task]
 )
+
+# Execute with security checks
 result = crew.kickoff()
 ```
 
-### AutoGen Integration
-
+#### AutoGen Integration
 ```python
 from zta_agent import initialize_agent
 
@@ -119,53 +169,10 @@ from zta_agent import initialize_agent
 zta_components = initialize_agent()
 autogen_adapter = zta_components['autogen_adapter']
 
-# Validate communication
+# Validate agent communication
 result = autogen_adapter.validate_agent_communication(
     source_agent="assistant",
     target_agent="user",
     message={"type": "text", "content": "Hello"},
     token=token
 )
-```
-
-## Security Considerations
-
-1. **API Key Management**: 
-   - Store API keys securely in environment variables
-   - Never commit API keys to version control
-   - Rotate keys regularly
-
-2. **Policy Configuration**:
-   - Start with restrictive policies
-   - Use the principle of least privilege
-   - Regularly audit policy configurations
-
-3. **Monitoring**:
-   - Enable logging for all security events
-   - Set up alerts for suspicious activities
-   - Regularly review security logs
-
-## API Documentation
-
-### Authentication Manager
-
-```python
-auth_manager.authenticate(credentials: Dict) -> str
-auth_manager.validate_token(token: str) -> Optional[Dict]
-auth_manager.revoke_token(token: str) -> bool
-```
-
-### Policy Engine
-
-```python
-policy_engine.evaluate(context: Dict) -> bool
-policy_engine.add_policy(policy: Policy) -> None
-policy_engine.remove_policy(policy_name: str) -> bool
-```
-
-### Security Monitor
-
-```python
-security_monitor.record_event(event_type: str, details: Dict, severity: str) -> None
-security_monitor.get_events(event_type: str = None, severity: str = None) -> List[SecurityEvent]
-security_monitor.get_alerts(severity: str = None) -> List[SecurityEvent]
