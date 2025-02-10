@@ -90,17 +90,17 @@ pip install -e .
     ```
 4. **Sample test crewai integration with Zero Truse agent**
 
-```bash
-python ./examples/test_crewai.py
-
-```
-or you can test more integration using
 
 ```bash
 
 python ./examples/crewai_example.py
 
 ```
+The following is the sample output
+
+   ![Example Output from runing crewai_example.py ](auto-gen-output.png)
+
+
 
 ## Framework Integration Guide
 
@@ -240,6 +240,7 @@ if allowed_decision:
     print("Crew execution result:", result)
 ```
 
+
 ### AutoGen Integration
 
 ```python
@@ -264,7 +265,6 @@ result = autogen_adapter.validate_agent_communication(
     token=token
 )
 ```
-
 ## Security Considerations
 
 **API Key Management**:
