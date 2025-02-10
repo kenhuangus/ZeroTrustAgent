@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 import logging
 import os
 
-# Determine whether to use emoji based on the encoding.
+# Disable logging exception traceback (so errors from logging aren't printed)
+logging.raiseExceptions = False
+
+# Determine whether stdout supports emoji based on encoding.
 USE_EMOJI = True
 if sys.stdout.encoding is None or "utf-8" not in sys.stdout.encoding.lower():
     USE_EMOJI = False
@@ -37,8 +40,21 @@ def safe_emoji(text):
             text = text.replace(k, v)
     return text
 
-# Reconfigure logging.
-handler = logging.StreamHandler(sys.stdout)
+# Custom logging handler that catches UnicodeEncodeError and does nothing.
+class UnicodeSafeStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            stream.write(msg + self.terminator)
+            self.flush()
+        except UnicodeEncodeError:
+            # Do nothing if there's a UnicodeEncodeError,
+            # allowing the program to continue without logging this error.
+            pass
+
+# Reconfigure logging using the custom handler.
+handler = UnicodeSafeStreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 logger = logging.getLogger(__name__)
 logger.handlers = []  # Clear existing handlers.
@@ -65,7 +81,7 @@ def patched_validate_token(token):
     return original_validate_token(token)
 auth_manager.validate_token = patched_validate_token
 
-# Patch the policy evaluation so that:
+# Patch policy evaluation so that:
 # - "text" and "function_call" messages are allowed.
 # - "system" messages are denied.
 original_policy_evaluate = autogen_adapter.policy_engine.evaluate
@@ -144,22 +160,28 @@ def secure_send(message, recipient, message_type="text", request_reply=None, sil
             try:
                 result = original_send(message, recipient, request_reply, silent)
                 logger.info(safe_emoji("✅ Message sent successfully."))
-                security_monitor.record_event("message_sent", {"source": assistant.name, "recipient": recipient.name, "type": message_type}, "INFO")
+                security_monitor.record_event("message_sent", {"source": assistant.name,
+                                                               "recipient": recipient.name,
+                                                               "type": message_type}, "INFO")
                 return result
             except Exception as send_err:
                 logger.error(safe_emoji(f"🚨 Error during LLM call: {str(send_err)}"))
                 security_monitor.record_event("llm_call_failure", {"error": str(send_err)}, "ERROR")
                 return "LLM call failed, recovered gracefully."
         else:
-            # If message type is "text" and allowed, print an allowed log.
+            # For allowed text messages, log accordingly.
             if message_type == "text":
                 logger.info(safe_emoji("✅ Communication permitted for allowed message."))
-                security_monitor.record_event("communication_allowed", {"source": assistant.name, "recipient": recipient.name, "type": message_type}, "INFO")
+                security_monitor.record_event("communication_allowed", {"source": assistant.name,
+                                                                        "recipient": recipient.name,
+                                                                        "type": message_type}, "INFO")
                 # Simulate a successful message send if already permitted.
                 return "Message sent (simulated)."
             else:
                 logger.info(safe_emoji("🚫 Communication denied by security policy."))
-                security_monitor.record_event("communication_denied", {"source": assistant.name, "recipient": recipient.name, "type": message_type}, "WARNING")
+                security_monitor.record_event("communication_denied", {"source": assistant.name,
+                                                                       "recipient": recipient.name,
+                                                                       "type": message_type}, "WARNING")
                 return "Communication denied by security policy"
     except Exception as e:
         logger.error(safe_emoji(f"🔥 Unexpected error during secure_send: {str(e)}"))
