@@ -2,6 +2,12 @@
 CrewAI Integration Adapter for Zero Trust Security Agent
 """
 
+# Begin added lines (to resolve relative import issues)
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+# End added lines
+
 from typing import Any, Dict, Optional
 from ..core.auth import AuthenticationManager
 from ..core.policy import PolicyEngine
