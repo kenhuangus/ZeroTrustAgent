@@ -55,7 +55,6 @@ class CrewAIAdapter:
             },
             "INFO" if is_allowed else "WARNING"
         )
-        
         return is_allowed
 
     def secure_task_execution(self, task: Dict, agent_id: str, token: str) -> bool:
@@ -84,7 +83,7 @@ class CrewAIAdapter:
             {"task": task, "agent_id": agent_id, "allowed": is_allowed},
             "INFO"
         )
-
+        
         return is_allowed
 
     def validate_agent_communication(self, 
@@ -117,5 +116,5 @@ class CrewAIAdapter:
             },
             "INFO" if is_allowed else "WARNING"
         )
-
+        
         return is_allowed
