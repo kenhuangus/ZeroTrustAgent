@@ -16,7 +16,7 @@ In multi-agent systems, traditional security models that rely on implicit trust 
 
 `zta-agent` provides:
 
-*   **Robust Authentication:** Securely verifies agent identities.
+*   **Authentication:** Securely verifies agent identities. (currently a place holder, future improvement including allow integration with EntraID or social login or certificate based authentication)
 *   **Fine-Grained Policy Enforcement:** Controls agent actions based on predefined policies.
 *   **Comprehensive Security Monitoring:** Tracks and audits all security-relevant events.
 
