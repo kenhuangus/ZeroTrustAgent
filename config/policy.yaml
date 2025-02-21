@@ -102,3 +102,94 @@ policies:
       conditions: {}
       effect: "deny"
       priority: 0
+
+# Security monitoring configuration
+monitoring:
+  # GeoIP and threat intelligence
+  geoip_db_path: "/path/to/GeoLite2-City.mmdb"
+  threat_intel_api_key: "your-abuseipdb-api-key"
+  
+  # Rate limiting configurations
+  rate_limits:
+    auth:
+      window: 3600  # 1 hour
+      max_requests: 100
+    api:
+      window: 60  # 1 minute
+      max_requests: 30
+
+  # Alert thresholds for different event types
+  alert_thresholds:
+    authentication_failure: 10  # Alert after 10 failures
+    suspicious_activity: 5
+    policy_violation: 3
+    token_revocation: 5
+    certificate_error: 3
+
+  # IP management
+  max_auth_failures: 5  # Number of failures before marking IP as suspicious
+  ip_blacklist:
+    - "10.0.0.0/8"  # Example blocked network
+    - "192.168.1.100"  # Example blocked IP
+  ip_whitelist:
+    - "192.168.1.0/24"  # Example trusted network
+    - "10.10.10.10"  # Example trusted IP
+
+  # Suspicious activity detection
+  suspicious_patterns:
+    - pattern: "SQL injection attempt"
+      severity: "critical"
+    - pattern: "XSS attempt"
+      severity: "critical"
+    - pattern: "Directory traversal"
+      severity: "critical"
+    - pattern: "Brute force attempt"
+      severity: "high"
+
+  # Alert notifications
+  notifications:
+    email:
+      enabled: true
+      smtp_server: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "security@example.com"
+      smtp_password: "your-smtp-password"
+      recipients:
+        - "security-team@example.com"
+        - "admin@example.com"
+    slack:
+      enabled: true
+      webhook_url: "https://hooks.slack.com/services/your/webhook/url"
+      channel: "#security-alerts"
+
+  # Metrics and reporting
+  metrics:
+    enabled: true
+    collection_interval: 300  # 5 minutes
+    retention_days: 30
+    export_format: "json"
+    export_path: "logs/security_metrics/"
+
+  # Response actions
+  automated_responses:
+    enabled: true
+    actions:
+      excessive_auth_failures:
+        - action: "block_ip"
+          duration: 3600  # 1 hour
+        - action: "notify_admin"
+      high_threat_score:
+        - action: "block_ip"
+          duration: 86400  # 24 hours
+        - action: "notify_admin"
+      policy_violation:
+        - action: "revoke_tokens"
+        - action: "notify_admin"
+
+  # Session monitoring
+  session_tracking:
+    enabled: true
+    max_concurrent_sessions: 5
+    session_timeout: 3600  # 1 hour
+    track_location_changes: true
+    track_user_agent_changes: true
