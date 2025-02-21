@@ -16,6 +16,7 @@ from threading import Lock
 import schedule
 import threading
 from .security_logger import SecurityLogger
+from .security_analysis.llm_analyzer import LLMAnalyzer, AnalysisResult
 
 @dataclass
 class SecurityEvent:
@@ -66,9 +67,15 @@ class SecurityMonitor:
                 - ip_blacklist: List of blocked IP addresses/ranges
                 - ip_whitelist: List of trusted IP addresses/ranges
                 - rate_limits: Dictionary of rate limit configurations
+                - llm: LLM configuration for security analysis
         """
         self.config = config
         self.logger = SecurityLogger(config)
+        
+        # Initialize LLM analyzer if configured
+        self.llm_analyzer = None
+        if "llm" in config:
+            self.llm_analyzer = LLMAnalyzer(config["llm"])
         
         # Initialize GeoIP database
         self.geoip_reader = geoip2.database.Reader(config["geoip_db_path"])
@@ -242,6 +249,102 @@ class SecurityMonitor:
                 self._trigger_alert("high_threat_score", {
                     "ip": event.source_ip,
                     "score": event.threat_intel["abuse_score"]
+                })
+
+        # Perform LLM analysis for suspicious events
+        if (event.severity in ["warning", "error", "critical"] and 
+            self.llm_analyzer is not None):
+            self._perform_llm_analysis(event)
+
+    def _perform_llm_analysis(self, event: SecurityEvent) -> None:
+        """Perform LLM-based analysis of suspicious events"""
+        try:
+            # Prepare event data for analysis
+            event_data = {
+                "timestamp": datetime.fromtimestamp(event.timestamp).isoformat(),
+                "event_type": event.event_type,
+                "severity": event.severity,
+                "source_ip": event.source_ip,
+                "user_agent": event.user_agent,
+                "identity": event.identity,
+                "details": event.details,
+                "location_info": event.location_info,
+                "threat_intel": event.threat_intel
+            }
+
+            # Get LLM analysis
+            analysis_result = self.llm_analyzer.analyze_event(event_data)
+            
+            if analysis_result:
+                # Log the analysis
+                self.logger.info(
+                    "LLM Analysis Result",
+                    extra={
+                        "event_id": event.timestamp,
+                        "threat_level": analysis_result.threat_level,
+                        "confidence": analysis_result.confidence,
+                        "analysis": analysis_result.analysis,
+                        "recommendations": analysis_result.recommendations,
+                        "patterns": analysis_result.patterns_identified,
+                        "false_positive_prob": analysis_result.false_positive_probability
+                    }
+                )
+
+                # Take automated actions based on analysis
+                if (analysis_result.threat_level in ["high", "critical"] and 
+                    analysis_result.confidence > 0.8 and
+                    analysis_result.false_positive_probability < 0.2):
+                    
+                    self._trigger_alert("llm_analysis_threat", {
+                        "event_data": event_data,
+                        "analysis": analysis_result,
+                        "automated_response": True
+                    })
+
+                    # Apply recommended actions
+                    self._apply_llm_recommendations(
+                        event.source_ip,
+                        event.identity,
+                        analysis_result.recommendations
+                    )
+
+        except Exception as e:
+            self.logger.error(f"LLM analysis failed: {str(e)}")
+
+    def _apply_llm_recommendations(
+        self,
+        source_ip: Optional[str],
+        identity: Optional[str],
+        recommendations: List[str]
+    ) -> None:
+        """Apply recommendations from LLM analysis"""
+        for recommendation in recommendations:
+            recommendation = recommendation.lower()
+            
+            if "block ip" in recommendation and source_ip:
+                self.add_to_blacklist(source_ip)
+                self.logger.info(f"Blocked IP {source_ip} based on LLM recommendation")
+                
+            elif "revoke tokens" in recommendation and identity:
+                # Assuming token_store is accessible
+                if hasattr(self, 'token_store'):
+                    self.token_store.revoke_all_user_tokens(identity)
+                    self.logger.info(
+                        f"Revoked all tokens for {identity} based on LLM recommendation"
+                    )
+                    
+            elif "increase monitoring" in recommendation and source_ip:
+                # Add to enhanced monitoring list
+                self.suspicious_ips.add(source_ip)
+                self.logger.info(
+                    f"Added {source_ip} to enhanced monitoring based on LLM recommendation"
+                )
+                
+            elif "notify admin" in recommendation:
+                self._trigger_alert("llm_recommendation", {
+                    "recommendation": recommendation,
+                    "source_ip": source_ip,
+                    "identity": identity
                 })
 
     def _check_alert_thresholds(self, event_type: str) -> None:

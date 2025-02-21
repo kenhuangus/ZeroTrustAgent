@@ -193,3 +193,68 @@ monitoring:
     session_timeout: 3600  # 1 hour
     track_location_changes: true
     track_user_agent_changes: true
+
+  # LLM-based security analysis
+  llm:
+    # Primary LLM provider configuration
+    provider: "openai"  # openai, anthropic, or vertex
+    api_key: "your-api-key-here"
+    model: "gpt-4"  # or claude-2 for Anthropic, text-bison@002 for Vertex
+    temperature: 0.2
+    max_tokens: 1000
+    
+    # Backup providers in case primary fails
+    backup_providers:
+      - "anthropic"
+      - "vertex"
+    
+    # Provider-specific configurations
+    openai:
+      api_key: "your-openai-api-key"
+      model: "gpt-4"
+      temperature: 0.2
+      max_tokens: 1000
+    
+    anthropic:
+      api_key: "your-anthropic-api-key"
+      model: "claude-2"
+      max_tokens: 1000
+    
+    vertex:
+      project_id: "your-gcp-project"
+      location: "us-central1"
+      model: "text-bison@002"
+      temperature: 0.2
+      max_tokens: 1000
+    
+    # Analysis settings
+    analysis:
+      min_confidence_threshold: 0.8
+      max_false_positive_rate: 0.2
+      severity_threshold: "warning"  # minimum severity for LLM analysis
+      
+      # Types of events to analyze
+      event_types:
+        - "authentication_failure"
+        - "suspicious_activity"
+        - "policy_violation"
+        - "certificate_error"
+        - "token_revocation"
+      
+      # Automated response settings
+      automated_responses:
+        enabled: true
+        confidence_threshold: 0.9
+        allowed_actions:
+          - "block_ip"
+          - "revoke_tokens"
+          - "increase_monitoring"
+          - "notify_admin"
+      
+      # Context enrichment
+      include_context:
+        historical_events: true
+        max_historical_events: 10
+        threat_intel: true
+        geo_location: true
+        user_behavior: true
