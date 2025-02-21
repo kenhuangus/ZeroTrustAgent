@@ -592,6 +592,154 @@ security_monitor.get_events(event_type: str = None, severity: str = None) -> Lis
 security_monitor.get_alerts(severity: str = None) -> List[SecurityEvent]
 ```
 
+## Advanced Security Monitoring
+
+The Zero Trust Agent includes a sophisticated security monitoring system with advanced threat detection and behavioral analytics capabilities:
+
+### Behavioral Analytics
+
+1. **User Behavior Profiling**
+   - Machine learning-based anomaly detection
+   - Access pattern analysis
+   - Device fingerprinting
+   - Location-based tracking
+   - Resource usage monitoring
+   - Session behavior analysis
+
+2. **Network Behavior Analysis**
+   - Protocol anomaly detection
+   - Bandwidth pattern monitoring
+   - Connection tracking
+   - Flow analysis
+   - Peer IP profiling
+   - Packet size analysis
+
+3. **ML-Powered Detection**
+   - Isolation Forest for anomaly detection
+   - Sequential pattern analysis using LSTM
+   - Real-time risk scoring
+   - Automated profile updates
+   - Confidence-based alerting
+
+### Threat Hunting & Intelligence
+
+1. **MITRE ATT&CK Integration**
+   - Comprehensive technique coverage
+   - Tactic mapping
+   - Detection strategies
+   - Mitigation recommendations
+   - Data source correlation
+
+2. **Detection Rules**
+   - YARA rule support
+   - Sigma rule integration
+   - Custom rule engine
+   - Real-time rule updates
+   - Pattern matching
+
+3. **Threat Intelligence**
+   - Multiple feed integration (AlienVault, MISP)
+   - IOC management
+   - Threat scoring
+   - Automated correlation
+   - Historical analysis
+
+### LLM-Based Security Analysis
+
+1. **Multi-Provider Support**
+   - OpenAI GPT-4 integration
+   - Anthropic Claude support
+   - Google Vertex AI compatibility
+   - Automatic provider failover
+   - Configurable model selection
+
+2. **Intelligent Analysis**
+   - Context-aware threat assessment
+   - Natural language reasoning
+   - Pattern recognition
+   - False positive reduction
+   - Automated response recommendations
+
+3. **Security Response**
+   - Automated threat mitigation
+   - Confidence-based actions
+   - Customizable response rules
+   - Admin notifications
+   - Incident documentation
+
+### Configuration Example
+
+```yaml
+# Security monitoring configuration
+monitoring:
+  # Behavioral Analytics
+  behavioral_analytics:
+    model_path: "models/"
+    training_interval: 86400  # 24 hours
+    risk_weights:
+      anomaly: 0.4
+      sequence: 0.3
+      profile: 0.3
+
+  # Threat Hunting
+  threat_hunting:
+    mitre:
+      cache_file: "cache/mitre_attack.json"
+      minimum_confidence: 0.7
+    rules:
+      yara_rules_path: "rules/yara/"
+      sigma_rules_path: "rules/sigma/"
+
+  # LLM Analysis
+  llm:
+    provider: "openai"  # Primary provider
+    model: "gpt-4"
+    backup_providers:
+      - "anthropic"
+      - "vertex"
+```
+
+### Usage Example
+
+```python
+from zta_agent.core.security_analysis import SecurityMonitor, BehavioralAnalytics, ThreatHunter
+
+# Initialize security components
+security_monitor = SecurityMonitor(config)
+behavioral_analytics = BehavioralAnalytics(config)
+threat_hunter = ThreatHunter(config)
+
+# Monitor security events
+security_monitor.record_event(
+    event_type="authentication_attempt",
+    details={
+        "user_id": "user123",
+        "ip_address": "192.168.1.100",
+        "location": "US-NYC",
+        "device": "Windows-Chrome"
+    },
+    severity="info"
+)
+
+# Analyze user behavior
+risk_score, anomalies = behavioral_analytics.analyze_user_behavior(
+    user_id="user123",
+    event_data={
+        "timestamp": "2025-02-20T23:30:00",
+        "action": "resource_access",
+        "resource": "/api/sensitive_data"
+    }
+)
+
+# Hunt for threats
+threats = threat_hunter.hunt_threats(event_data={
+    "source_ip": "192.168.1.100",
+    "destination_ip": "203.0.113.1",
+    "protocol": "HTTPS",
+    "payload_size": 1500
+})
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

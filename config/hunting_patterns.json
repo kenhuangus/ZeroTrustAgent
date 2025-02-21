@@ -1,0 +1,22 @@
+{
+    "patterns": [
+        {
+            "name": "brute_force_attempt",
+            "description": "Multiple failed login attempts from same source",
+            "conditions": {
+                "event_type": "authentication_failure",
+                "threshold": 5,
+                "time_window": 300
+            }
+        },
+        {
+            "name": "suspicious_network_scan",
+            "description": "Multiple connection attempts to different ports",
+            "conditions": {
+                "event_type": "connection_attempt",
+                "unique_ports": 10,
+                "time_window": 60
+            }
+        }
+    ]
+}

@@ -1,9 +1,9 @@
+# AI/LLM Dependencies
 anthropic>=0.45.2
 crewai>=0.11.0
 duckduckgo-search>=4.1.1
 google-cloud-aiplatform>=1.79.0
 google-generativeai>=0.8.4
-hatch>=1.14.0
 langchain>=0.1.0
 langchain-community>=0.0.10
 langchain-google-vertexai>=2.0.7
@@ -12,9 +12,36 @@ langchain-openai>=0.0.2
 litellm>=1.59.8
 openai>=1.0.0
 pyautogen>=0.7.3
+vertexai>=1.43.0
+
+# Core Dependencies
 pydantic>=2.10.6
 pyjwt>=2.10.1
 python-dotenv>=1.0.1
 pyyaml>=6.0.2
 tenacity>=9.0.0
-vertexai>=1.43.0
+sqlalchemy>=2.0.0
+pyOpenSSL>=24.0.0
+cryptography>=42.0.0
+bcrypt>=4.1.0
+passlib>=1.7.4
+requests>=2.31.0
+aiohttp>=3.9.0
+schedule>=1.2.1
+
+# Security Analysis Dependencies
+scikit-learn>=1.4.0
+tensorflow>=2.15.0
+pandas>=2.2.0
+numpy>=1.26.0
+yara-python>=4.5.0
+geoip2>=4.8.0
+joblib>=1.3.0
+pymisp>=2.4.180
+stix2>=3.0.1
+taxii2-client>=2.3.0
+
+# Testing Dependencies
+pytest>=8.0.0
+pytest-cov>=6.0.0
+pytest-asyncio>=0.23.0

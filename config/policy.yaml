@@ -258,3 +258,138 @@ monitoring:
         threat_intel: true
         geo_location: true
         user_behavior: true
+
+  # Behavioral Analytics Configuration
+  behavioral_analytics:
+    # Machine Learning Models
+    model_path: "models/"
+    training_interval: 86400  # 24 hours
+    min_training_samples: 1000
+    
+    # Risk Weights
+    risk_weights:
+      anomaly: 0.4
+      sequence: 0.3
+      profile: 0.3
+    
+    # User Behavior Settings
+    user_behavior:
+      session_timeout: 3600  # 1 hour
+      max_sessions_per_user: 5
+      location_change_threshold: 500  # km
+      request_rate_threshold: 100  # requests per minute
+      resource_access_patterns: true
+      device_fingerprinting: true
+      
+    # Network Behavior Settings
+    network_behavior:
+      bandwidth_baseline_window: 168  # 7 days in hours
+      connection_baseline_window: 24   # hours
+      packet_size_sampling: 1000  # samples to keep
+      flow_duration_threshold: 3600  # seconds
+      peer_ip_tracking: true
+      protocol_whitelist:
+        - "TCP"
+        - "UDP"
+        - "HTTPS"
+        - "TLS 1.3"
+      
+    # Profile Updates
+    profile_updates:
+      decay_factor: 0.9
+      update_threshold: 0.1
+      max_profile_age: 2592000  # 30 days
+      cleanup_interval: 86400   # 24 hours
+
+  # Threat Hunting Configuration
+  threat_hunting:
+    # MITRE ATT&CK Integration
+    mitre:
+      cache_file: "cache/mitre_attack.json"
+      cache_ttl: 604800  # 7 days
+      minimum_confidence: 0.7
+      tactics_focus:
+        - "Initial Access"
+        - "Execution"
+        - "Persistence"
+        - "Privilege Escalation"
+        - "Defense Evasion"
+        - "Credential Access"
+        - "Discovery"
+        - "Lateral Movement"
+        - "Collection"
+        - "Command and Control"
+        - "Exfiltration"
+        - "Impact"
+    
+    # Detection Rules
+    rules:
+      yara_rules_path: "rules/yara/"
+      sigma_rules_path: "rules/sigma/"
+      custom_rules_path: "rules/custom/"
+      rule_update_interval: 3600  # 1 hour
+      
+    # Hunting Patterns
+    hunting_patterns_file: "config/hunting_patterns.json"
+    pattern_match_threshold: 0.8
+    
+    # IOC Feeds
+    ioc_feeds:
+      - name: "alienvault"
+        type: "alienvault"
+        api_key: "your-alienvault-api-key"
+        update_interval: 3600
+        minimum_pulse_score: 7
+        
+      - name: "misp"
+        type: "misp"
+        url: "https://your-misp-instance.com"
+        api_key: "your-misp-api-key"
+        verify_ssl: true
+        update_interval: 3600
+        
+      - name: "custom_feed"
+        type: "custom"
+        url: "https://your-custom-feed.com/ioc"
+        api_key: "your-api-key"
+        format: "json"
+        update_interval: 3600
+    
+    # Indicator Management
+    indicators:
+      max_age: 2592000  # 30 days
+      confidence_threshold: 0.7
+      severity_levels:
+        - "low"
+        - "medium"
+        - "high"
+        - "critical"
+      types:
+        - "ip"
+        - "domain"
+        - "url"
+        - "hash"
+        - "email"
+      
+    # Response Actions
+    response_actions:
+      automated_response: true
+      confidence_threshold: 0.9
+      false_positive_threshold: 0.1
+      actions:
+        - "block_ip"
+        - "revoke_access"
+        - "increase_monitoring"
+        - "quarantine"
+        - "alert"
+      
+    # Threat Intelligence
+    threat_intel:
+      cache_ttl: 3600
+      minimum_confidence: 0.7
+      correlation_window: 86400  # 24 hours
+      max_cache_size: 10000
+      feeds:
+        - "alienvault"
+        - "misp"
+        - "custom_feed"
