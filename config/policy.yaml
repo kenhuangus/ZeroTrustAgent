@@ -1,6 +1,51 @@
 auth:
-  token_expiry: 3600
-  secret_key: "your-secret-key-here"
+  # General authentication settings
+  secret_key: "your-secure-secret-key"  # Change this in production!
+  token_expiry: 3600  # 1 hour
+  refresh_token_expiry: 604800  # 7 days
+  max_failed_attempts: 5
+  lockout_duration: 300  # 5 minutes
+
+  # Password policy settings
+  password_policy:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    max_age_days: 90
+    history_size: 5  # Number of previous passwords to remember
+
+  # Google OAuth configuration
+  google:
+    client_id: "your-google-client-id"
+    client_secret: "your-google-client-secret"
+    redirect_uri: "http://localhost:8000/auth/google/callback"
+    scope: "openid email profile"
+
+  # GitHub OAuth configuration
+  github:
+    client_id: "your-github-client-id"
+    client_secret: "your-github-client-secret"
+    redirect_uri: "http://localhost:8000/auth/github/callback"
+    scope: "read:user user:email"
+
+  # Microsoft Entra ID configuration
+  entra:
+    client_id: "your-app-client-id"
+    client_secret: "your-client-secret"
+    tenant_id: "your-tenant-id"
+    redirect_uri: "http://localhost:8000/auth/entra/callback"
+    scope: "openid email profile User.Read"
+
+  # Certificate-based authentication configuration
+  certificate:
+    ca_cert_path: "/path/to/ca.crt"
+    verify_crl: true
+    crl_path: "/path/to/crl.pem"
+    allowed_subjects:
+      - "O=YourOrg"
+      - "OU=Agents"
 
 logging:
   level: DEBUG
