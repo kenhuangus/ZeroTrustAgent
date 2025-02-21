@@ -178,6 +178,424 @@ class NewFrameworkAdapter:
         return is_allowed
 ```
 
+## Authentication System
+
+The Zero Trust Agent implements a robust authentication system with the following features:
+
+### Core Authentication Features
+
+1. **Secure Token Management**
+   - JWT-based authentication with access and refresh tokens
+   - Configurable token expiry for both access and refresh tokens
+   - Token revocation and blacklisting support
+   - Automatic cleanup of expired tokens
+
+2. **Password Security**
+   - Secure password hashing using bcrypt
+   - Configurable password policies:
+     - Minimum length requirements
+     - Character complexity rules (uppercase, lowercase, numbers, special)
+     - Password expiration
+     - Password history to prevent reuse
+   - Account lockout after multiple failed attempts
+
+3. **Security Logging**
+   - Comprehensive security event logging
+   - Authentication attempts tracking
+   - Password changes and token operations
+   - IP address and user agent tracking
+
+### Configuration
+
+Configure the authentication system in your `config/policy.yaml`:
+
+```yaml
+auth:
+  secret_key: "your-secure-secret-key"
+  token_expiry: 3600  # 1 hour
+  refresh_token_expiry: 604800  # 7 days
+  max_failed_attempts: 5
+  lockout_duration: 300  # 5 minutes
+  password_policy:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    max_age_days: 90
+    history_size: 5
+```
+
+### Usage Example
+
+```python
+from zta_agent.core.auth import AuthenticationManager
+
+# Initialize authentication manager
+auth_manager = AuthenticationManager(config)
+
+# Create new credentials
+success, error = auth_manager.create_credentials(
+    identity="agent1",
+    password="SecurePassword123!"
+)
+
+# Authenticate and get tokens
+tokens = auth_manager.authenticate({
+    "identity": "agent1",
+    "secret": "SecurePassword123!",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+
+if tokens:
+    access_token = tokens["access_token"]
+    refresh_token = tokens["refresh_token"]
+
+# Validate a token
+claims = auth_manager.validate_token(access_token)
+
+# Refresh an access token
+new_tokens = auth_manager.refresh_access_token(refresh_token)
+
+# Change password
+success, error = auth_manager.change_password(
+    identity="agent1",
+    old_password="SecurePassword123!",
+    new_password="NewSecurePassword456!"
+)
+
+# Revoke tokens
+auth_manager.revoke_token(access_token)
+auth_manager.revoke_all_user_tokens("agent1")
+
+## Authentication Providers
+
+The Zero Trust Agent supports multiple authentication methods:
+
+### 1. Password-based Authentication
+
+The default authentication method using username/password credentials:
+
+```python
+auth_result = auth_manager.authenticate({
+    "provider": "password",
+    "identity": "agent1",
+    "secret": "SecurePassword123!",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+### 2. OAuth Authentication
+
+Support for OAuth 2.0 providers (e.g., Microsoft Entra ID, Google, GitHub):
+
+```yaml
+# Configuration in config/policy.yaml
+auth:
+  oauth:
+    client_id: "your-client-id"
+    client_secret: "your-client-secret"
+    authorize_url: "https://login.microsoftonline.com/tenant-id/oauth2/v2.0/authorize"
+    token_url: "https://login.microsoftonline.com/tenant-id/oauth2/v2.0/token"
+    userinfo_url: "https://graph.microsoft.com/v1.0/me"
+    redirect_uri: "http://localhost:8000/callback"
+    scope: "openid profile email"
+```
+
+Usage example:
+
+```python
+# Step 1: Get authorization URL
+oauth_provider = auth_manager.auth_providers["oauth"]
+state = secrets.token_hex(16)
+auth_url = oauth_provider.get_authorization_url(state)
+
+# Step 2: After user authorization, authenticate with code
+auth_result = auth_manager.authenticate({
+    "provider": "oauth",
+    "code": "authorization_code_from_callback",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+
+# Or authenticate with existing access token
+auth_result = auth_manager.authenticate({
+    "provider": "oauth",
+    "access_token": "existing_oauth_token",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+### 3. Certificate-based Authentication
+
+Support for client certificate authentication:
+
+```yaml
+# Configuration in config/policy.yaml
+auth:
+  certificate:
+    ca_cert_path: "/path/to/ca.crt"
+    verify_crl: true
+    crl_path: "/path/to/crl.pem"
+    allowed_subjects:
+      - "O=YourOrg"
+      - "OU=Agents"
+```
+
+Usage example:
+
+```python
+# Read client certificate
+with open("client.crt", "rb") as f:
+    cert_data = f.read()
+
+# Authenticate with certificate
+auth_result = auth_manager.authenticate({
+    "provider": "certificate",
+    "certificate": cert_data,
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+### Social Login Providers
+
+The Zero Trust Agent supports popular social and enterprise login providers:
+
+#### Google OAuth
+
+```yaml
+# Configuration in config/policy.yaml
+auth:
+  google:
+    client_id: "your-google-client-id"
+    client_secret: "your-google-client-secret"
+    redirect_uri: "http://localhost:8000/auth/google/callback"
+    scope: "openid email profile"  # Optional, this is the default
+```
+
+Usage example:
+
+```python
+# Get Google authorization URL
+google_provider = auth_manager.auth_providers["google"]
+state = secrets.token_hex(16)
+auth_url = google_provider.get_authorization_url(state)
+
+# After user authorization, authenticate with code
+auth_result = auth_manager.authenticate({
+    "provider": "google",
+    "code": "google_auth_code",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+#### GitHub OAuth
+
+```yaml
+# Configuration in config/policy.yaml
+auth:
+  github:
+    client_id: "your-github-client-id"
+    client_secret: "your-github-client-secret"
+    redirect_uri: "http://localhost:8000/auth/github/callback"
+    scope: "read:user user:email"  # Optional, this is the default
+```
+
+Usage example:
+
+```python
+# Get GitHub authorization URL
+github_provider = auth_manager.auth_providers["github"]
+state = secrets.token_hex(16)
+auth_url = github_provider.get_authorization_url(state)
+
+# After user authorization, authenticate with code
+auth_result = auth_manager.authenticate({
+    "provider": "github",
+    "code": "github_auth_code",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+#### Microsoft Entra ID (Azure AD)
+
+```yaml
+# Configuration in config/policy.yaml
+auth:
+  entra:
+    client_id: "your-app-client-id"
+    client_secret: "your-client-secret"
+    tenant_id: "your-tenant-id"
+    redirect_uri: "http://localhost:8000/auth/entra/callback"
+    scope: "openid email profile User.Read"  # Optional, this is the default
+```
+
+Usage example:
+
+```python
+# Get Microsoft authorization URL
+entra_provider = auth_manager.auth_providers["entra"]
+state = secrets.token_hex(16)
+auth_url = entra_provider.get_authorization_url(state)
+
+# After user authorization, authenticate with code
+auth_result = auth_manager.authenticate({
+    "provider": "entra",
+    "code": "entra_auth_code",
+    "ip_address": "192.168.1.1",
+    "user_agent": "Python/3.9"
+})
+```
+
+### Provider-specific Response Data
+
+Each social provider returns additional user information:
+
+1. **Google**:
+   ```python
+   {
+       "identity": "google-user-id",
+       "email": "user@gmail.com",
+       "name": "User Name",
+       "picture": "https://...",
+       "email_verified": true,
+       "locale": "en",
+       "provider": "google"
+   }
+   ```
+
+2. **GitHub**:
+   ```python
+   {
+       "identity": "github-user-id",
+       "email": "user@github.com",
+       "name": "User Name",
+       "login": "username",
+       "avatar_url": "https://...",
+       "html_url": "https://github.com/username",
+       "company": "Company Name",
+       "location": "Location",
+       "email_verified": true,
+       "provider": "github"
+   }
+   ```
+
+3. **Microsoft Entra ID**:
+   ```python
+   {
+       "identity": "entra-user-id",
+       "email": "user@company.com",
+       "name": "User Name",
+       "given_name": "Given",
+       "surname": "Name",
+       "job_title": "Job Title",
+       "business_phones": ["+1..."],
+       "office_location": "Office",
+       "preferred_language": "en-US",
+       "photo": "binary-photo-data",
+       "provider": "entra"
+   }
+   ```
+
+### Social Login Security Best Practices
+
+1. **Configuration Security**
+   - Store client secrets securely using environment variables or secret management systems
+   - Use separate OAuth applications for development and production
+   - Regularly rotate client secrets
+
+2. **State Management**
+   - Always validate the state parameter to prevent CSRF attacks
+   - Use cryptographically secure random values for state
+   - Implement session management to track state across requests
+
+3. **Scope Management**
+   - Request minimal scopes needed for your application
+   - Document and review all requested scopes
+   - Handle scope changes in provider configurations
+
+4. **User Data Handling**
+   - Validate email verification status when using email for identity
+   - Handle provider-specific user data formats
+   - Implement user data synchronization policies
+
+5. **Error Handling**
+   - Handle provider-specific error responses
+   - Implement proper error logging and monitoring
+   - Provide user-friendly error messages
+
+### Authentication Response
+
+All authentication methods return a consistent response format:
+
+```python
+{
+    "access_token": "jwt_access_token",
+    "refresh_token": "jwt_refresh_token",
+    "token_type": "bearer",
+    "expires_in": 3600,
+    "identity": "user_or_agent_id",
+    "provider": "password|oauth|certificate",
+    # Additional provider-specific information
+}
+```
+
+### Security Best Practices
+
+1. **OAuth Security**
+   - Use HTTPS for all OAuth endpoints
+   - Validate state parameter to prevent CSRF
+   - Store client secrets securely
+   - Use appropriate scopes
+
+2. **Certificate Security**
+   - Keep CA private key secure
+   - Regularly update CRL
+   - Use strong certificate policies
+   - Implement certificate rotation
+
+3. **General Security**
+   - Monitor authentication attempts
+   - Implement rate limiting
+   - Use secure communication channels
+   - Regular security audits
+
+## API Documentation
+
+### Authentication Manager
+
+```python
+auth_manager.authenticate(credentials: Dict) -> str
+auth_manager.validate_token(token: str) -> Optional[Dict]
+auth_manager.revoke_token(token: str) -> bool
+```
+
+### Policy Engine
+
+```python
+policy_engine.evaluate(context: Dict) -> bool
+policy_engine.add_policy(policy: Policy) -> None
+policy_engine.remove_policy(policy_name: str) -> bool
+```
+
+### Security Monitor
+
+```python
+security_monitor.record_event(event_type: str, details: Dict, severity: str) -> None
+security_monitor.get_events(event_type: str = None, severity: str = None) -> List[SecurityEvent]
+security_monitor.get_alerts(severity: str = None) -> List[SecurityEvent]
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ## Integration Examples
 
 ### CrewAI Integration
@@ -240,7 +658,6 @@ if allowed_decision:
     print("Crew execution result:", result)
 ```
 
-
 ### AutoGen Integration
 
 ```python
@@ -284,34 +701,3 @@ result = autogen_adapter.validate_agent_communication(
 *   Enable logging for all security events.
 *   Set up alerts for suspicious activities.
 *   Regularly review security logs.
-
-## API Documentation
-
-### Authentication Manager
-
-```python
-auth_manager.authenticate(credentials: Dict) -> str
-auth_manager.validate_token(token: str) -> Optional[Dict]
-auth_manager.revoke_token(token: str) -> bool
-```
-
-### Policy Engine
-
-```python
-policy_engine.evaluate(context: Dict) -> bool
-policy_engine.add_policy(policy: Policy) -> None
-policy_engine.remove_policy(policy_name: str) -> bool
-```
-
-### Security Monitor
-
-```python
-security_monitor.record_event(event_type: str, details: Dict, severity: str) -> None
-security_monitor.get_events(event_type: str = None, severity: str = None) -> List[SecurityEvent]
-security_monitor.get_alerts(severity: str = None) -> List[SecurityEvent]
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-```
