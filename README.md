@@ -16,7 +16,7 @@ In multi-agent systems, traditional security models that rely on implicit trust 
 
 `zta-agent` provides:
 
-*   **Authentication:** Securely verifies agent identities. (currently a place holder, future improvement including allow integration with EntraID or social login or certificate based authentication)
+*   **Authentication:** Securely verifies agent identities.
 *   **Fine-Grained Policy Enforcement:** Controls agent actions based on predefined policies.
 *   **Comprehensive Security Monitoring:** Tracks and audits all security-relevant events.
 
@@ -44,6 +44,7 @@ graph TD
     B --> C[ZeroTrustAgent]
     C --> D[Policies & Monitoring]
 ```
+(To view this diagram, you can use a browser extension for Mermaid, or paste the code into an online Mermaid editor like https://mermaid.live).
 
 ## Installation & Setup
 
@@ -52,9 +53,13 @@ git clone https://github.com/kenhuangus/ZeroTrustAgent.git
 cd ZeroTrustAgent
 pip install build
 python -m build
+
+# For development/editable install:
 pip install -e .
 
-
+# For standard install:
+# pip install . 
+# (or install the wheel from dist/ if you prefer)
 ```
 
 ### Basic Configuration
@@ -180,7 +185,7 @@ class NewFrameworkAdapter:
 
 ## Authentication System
 
-The Zero Trust Agent implements a robust authentication system with the following features:
+The Zero Trust Agent (ZTA) Framework implements a robust authentication system with the following features:
 
 ### Core Authentication Features
 
@@ -363,7 +368,7 @@ auth_result = auth_manager.authenticate({
 
 ### Social Login Providers
 
-The Zero Trust Agent supports popular social and enterprise login providers:
+The Zero Trust Agent (ZTA) Framework supports popular social and enterprise login providers:
 
 #### Google OAuth
 
@@ -594,7 +599,7 @@ security_monitor.get_alerts(severity: str = None) -> List[SecurityEvent]
 
 ## Advanced Security Monitoring
 
-The Zero Trust Agent includes a sophisticated security monitoring system with advanced threat detection and behavioral analytics capabilities:
+The Zero Trust Agent (ZTA) Framework includes a sophisticated security monitoring system with advanced threat detection and behavioral analytics capabilities:
 
 ### Behavioral Analytics
 
@@ -745,7 +750,7 @@ threats = threat_hunter.hunt_threats(event_data={
 
 ### CrewAI Integration
 
-The Zero Trust Security Agent system now simulates two agents:
+The Zero Trust Agent (ZTA) Framework now simulates two agents:
 - **Allowed Agent**: For example, an agent with identity `research_agent` that meets the policy conditions (matches the regex `^research_.*`).
 - **Denied Agent**: For example, an agent with identity `denied_agent` that does not meet any allow conditions and falls to the default deny.
 
