@@ -13,7 +13,6 @@ setup(
         "duckduckgo-search>=4.1.1",
         "google-cloud-aiplatform>=1.79.0",
         "google-generativeai>=0.8.4",
-        "hatch>=1.14.0",
         "langchain>=0.1.0",
         "langchain-community>=0.0.10",
         "langchain-google-vertexai>=2.0.7",
