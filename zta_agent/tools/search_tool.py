@@ -2,7 +2,6 @@
 Custom tools for CrewAI integration
 """
 
-from typing import Any, Dict
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field

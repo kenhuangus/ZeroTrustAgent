@@ -1,5 +1,4 @@
 
-from crewai import Agent, Task, Crew
 from zta_agent import initialize_agent
 
 def test_crewai_integration():
@@ -15,7 +14,7 @@ def test_crewai_integration():
         "identity": "researcher",
         "secret": "test_secret"
     })
-    print(f"Authentication token obtained successfully")
+    print("Authentication token obtained successfully")
     
     # Test different task types
     tasks = [

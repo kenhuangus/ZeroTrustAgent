@@ -2,11 +2,9 @@
 AutoGen Integration Test for Zero Trust Security Agent
 """
 
-import os
 import logging
 import sys
 from dotenv import load_dotenv
-import autogen
 from zta_agent import initialize_agent
 
 # Setup logging
@@ -28,7 +26,7 @@ def test_autogen_integration():
         zta_components = initialize_agent()
         auth_manager = zta_components['auth_manager']
         autogen_adapter = zta_components['autogen_adapter']
-        security_monitor = zta_components['security_monitor']
+        zta_components['security_monitor']
 
         # Get authentication token
         logger.info("Authenticating test agent...")

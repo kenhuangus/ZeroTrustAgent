@@ -2,7 +2,7 @@
 LLM-based Security Log Analysis
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 import json
 import openai
 import anthropic

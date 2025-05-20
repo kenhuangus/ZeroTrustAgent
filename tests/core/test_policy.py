@@ -1,5 +1,4 @@
 import unittest
-import re
 from zta_agent.core.policy import PolicyEngine, Policy
 
 class TestPolicyEngine(unittest.TestCase):

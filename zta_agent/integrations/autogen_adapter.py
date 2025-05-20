@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 from ..core.auth import AuthenticationManager
 from ..core.policy import PolicyEngine
 from ..core.monitor import SecurityMonitor

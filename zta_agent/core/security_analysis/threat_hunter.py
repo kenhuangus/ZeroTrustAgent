@@ -1,17 +1,15 @@
 """
 Advanced Threat Hunting and MITRE ATT&CK Integration
 """
-
-from typing import Dict, List, Optional, Set, Tuple
+import os
+from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
 import requests
 import json
 import logging
-from datetime import datetime, timedelta
-from collections import defaultdict
+from datetime import datetime
 import re
 import yaml
-import numpy as np
 from threading import Lock
 
 @dataclass

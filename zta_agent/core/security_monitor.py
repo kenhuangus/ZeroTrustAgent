@@ -3,20 +3,19 @@ Security Monitoring System for Zero Trust Agent
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional, Set
 from collections import defaultdict
 import ipaddress
 import geoip2.database
 import requests
 from dataclasses import dataclass
 import json
-import logging
 from threading import Lock
 import schedule
 import threading
 from .security_logger import SecurityLogger
-from .security_analysis.llm_analyzer import LLMAnalyzer, AnalysisResult
+from .security_analysis.llm_analyzer import LLMAnalyzer
 
 @dataclass
 class SecurityEvent:
@@ -153,7 +152,7 @@ class SecurityMonitor:
         """Query threat intelligence data for an IP"""
         try:
             response = requests.get(
-                f"https://api.abuseipdb.com/api/v2/check",
+                "https://api.abuseipdb.com/api/v2/check",
                 headers={"Key": self.config["threat_intel_api_key"]},
                 params={"ipAddress": ip, "maxAgeInDays": 90}
             )

@@ -3,7 +3,7 @@ Token Store for Zero Trust Security Agent
 """
 
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional
 from sqlalchemy.exc import SQLAlchemyError
 from .models.base import get_session
 from .models.token import Token

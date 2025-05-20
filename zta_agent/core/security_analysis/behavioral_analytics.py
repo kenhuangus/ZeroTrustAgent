@@ -7,16 +7,10 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-import pandas as pd
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 import logging
-from collections import defaultdict
-import ipaddress
-import tensorflow as tf
 from tensorflow.keras import layers, models
 import joblib
-import pickle
 from threading import Lock
 
 @dataclass
@@ -135,7 +129,7 @@ class BehavioralAnalytics:
             features = self._extract_user_features(event_data, profile)
             
             # Normalize features
-            normalized_features = self.scaler.transform([features])
+            self.scaler.transform([features])
             
             # Get anomaly score from isolation forest
             anomaly_score = self.isolation_forest.score_samples([features])[0]

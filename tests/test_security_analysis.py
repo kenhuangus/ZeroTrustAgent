@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import Mock, patch
 import numpy as np
 from datetime import datetime, timedelta
-import json
 
 from zta_agent.core.security_analysis.behavioral_analytics import BehavioralAnalytics
 from zta_agent.core.security_analysis.threat_hunter import ThreatHunter

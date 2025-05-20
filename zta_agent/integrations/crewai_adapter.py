@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 # End added lines
 
-from typing import Any, Dict, Optional
+from typing import Dict
 from ..core.auth import AuthenticationManager
 from ..core.policy import PolicyEngine
 from ..core.monitor import SecurityMonitor

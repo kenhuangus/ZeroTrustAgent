@@ -3,7 +3,6 @@ Certificate-based Authentication Provider
 """
 
 from typing import Dict, Optional, Tuple
-import ssl
 import OpenSSL.crypto
 from datetime import datetime
 from .base import AuthenticationProvider
@@ -164,7 +163,7 @@ class CertificateProvider(AuthenticationProvider):
             return False, "Client certificate is required"
         
         try:
-            cert = OpenSSL.crypto.load_certificate(
+            OpenSSL.crypto.load_certificate(
                 OpenSSL.crypto.FILETYPE_PEM, credentials["certificate"]
             )
             return True, ""

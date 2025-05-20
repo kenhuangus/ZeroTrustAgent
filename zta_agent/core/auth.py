@@ -4,11 +4,10 @@ Authentication Manager for Zero Trust Security Agent
 
 import jwt
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple
 import secrets
 import bcrypt
 import base64
-import hmac
 from .credential_store import CredentialStore
 from .token_store import TokenStore
 from .password_policy import PasswordPolicy
@@ -39,26 +38,18 @@ class AuthenticationManager:
         self._setup_auth_providers(config)
 
     def _setup_auth_providers(self, config: Dict) -> None:
-        """Setup authentication providers based on configuration"""
-        # Setup social OAuth providers
-        if "google" in config:
-            self.auth_providers["google"] = GoogleOAuthProvider(config["google"])
+        """
+        Initializes and configures authentication providers based on the provided configuration.
 
-        if "github" in config:
-            self.auth_providers["github"] = GitHubOAuthProvider(config["github"])
+        This method dynamically sets up providers like Google, GitHub, EntraID,
+        generic OAuth, and certificate-based authentication if they are specified
+        in the configuration dictionary. Password-based authentication is always
+        enabled by default.
 
-        if "entra" in config:
-            self.auth_providers["entra"] = EntraIDOAuthProvider(config["entra"])
-
-        # Setup generic OAuth provider if configured
-        if "oauth" in config:
-            self.auth_providers["oauth"] = OAuthProvider(config["oauth"])
-
-        # Setup certificate provider if configured
-        if "certificate" in config:
-            self.auth_providers["certificate"] = CertificateProvider(config["certificate"])
-
-        # Password-based auth is always available
+        Args:
+            config: A dictionary containing the configuration for various
+                    authentication providers. Keys typically include "google",
+                    "github", "entra", "oauth", "certificate".
         """
         # Setup social OAuth providers
         if "google" in config:
@@ -192,32 +183,6 @@ class AuthenticationManager:
             )
 
             return final_auth_result
-            access_token = self.generate_token(
-                auth_result["identity"],
-                "access",
-                {"provider": provider_name, **auth_result}
-            )
-            refresh_token = self.generate_token(
-                auth_result["identity"],
-                "refresh",
-                {"provider": provider_name}
-            )
-
-            self.security_logger.log_authentication_attempt(
-                auth_result["identity"],
-                True,
-                credentials.get("ip_address"),
-                credentials.get("user_agent"),
-                details={"provider": provider_name}
-            )
-
-            return {
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "token_type": "bearer",
-                "expires_in": self.token_expiry,
-                **auth_result
-            }
 
         self.security_logger.log_authentication_attempt(
             credentials.get("identity", "unknown"),
@@ -450,8 +415,8 @@ class AuthenticationManager:
         """
         identity = credentials.get("identity")
         password = credentials.get("secret")
-        ip_address = credentials.get("ip_address")
-        user_agent = credentials.get("user_agent")
+        # ip_address = credentials.get("ip_address") # Result not used
+        # user_agent = credentials.get("user_agent") # Result not used
 
         if not identity or not password:
             return False, "Missing identity or password"
@@ -556,8 +521,15 @@ class AuthenticationManager:
         return self.verify_password(password, stored_creds["password_hash"])
 
     def refresh_access_token(self, refresh_token: str) -> Optional[Dict]:
+        """Generate a new access token using a refresh token.
 
-        """Generate a new access token using a refresh token."""
+        Args:
+            refresh_token: The refresh token string.
+
+        Returns:
+            Optional[Dict]: A dictionary containing the new access token,
+                            token type, and expiry if successful, None otherwise.
+        """
         claims = self.validate_token(refresh_token)
         if not claims or claims.get("type") != "refresh":
             return None
