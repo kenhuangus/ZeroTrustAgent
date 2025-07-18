@@ -20,7 +20,7 @@ setup(
         "langchain-openai>=0.0.2",
         "litellm>=1.59.8",
         "openai>=1.0.0",
-        "pyautogen>=0.7.3",
+        "ag2>=0.7.3",
         "pydantic>=2.10.6",
         "pyjwt>=2.10.1",
         "python-dotenv>=1.0.1",
