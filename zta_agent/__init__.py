@@ -7,6 +7,7 @@ from .core.policy import PolicyEngine
 from .core.monitor import SecurityMonitor
 from .integrations.crewai_adapter import CrewAIAdapter
 from .integrations.autogen_adapter import AutoGenAdapter
+from .integrations.openai_agent_adapter import OpenAIAgentAdapter
 from .utils.logger import setup_logging, get_logger
 from .utils.config import load_config
 
@@ -37,7 +38,8 @@ def initialize_agent(config_path: str = "config/policy.yaml"):
         "policy_engine": policy_engine,
         "security_monitor": security_monitor,
         "crewai_adapter": CrewAIAdapter(auth_manager, policy_engine, security_monitor),
-        "autogen_adapter": AutoGenAdapter(auth_manager, policy_engine, security_monitor)
+        "autogen_adapter": AutoGenAdapter(auth_manager, policy_engine, security_monitor),
+        "openai_agent_adapter": OpenAIAgentAdapter(auth_manager, policy_engine, security_monitor)
     }
 
     logger.info("All components initialized successfully")

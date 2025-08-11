@@ -827,6 +827,70 @@ result = autogen_adapter.validate_agent_communication(
     token=token
 )
 ```
+
+### OpenAI Agents SDK Integration
+
+The Zero Trust Agent now includes comprehensive support for the OpenAI Agents Python SDK, providing security validation for all agent operations.
+
+```python
+from zta_agent import initialize_agent
+from zta_agent.integrations.openai_agent_adapter import OpenAIAgentAdapter
+
+# Initialize ZTA components
+zta_components = initialize_agent()
+openai_adapter = zta_components['openai_agent_adapter']
+auth_manager = zta_components['auth_manager']
+
+# Authenticate agent
+auth_result = auth_manager.authenticate({
+    "identity": "research_assistant",
+    "secret": "secure_password",
+    "ip_address": "127.0.0.1",
+    "user_agent": "OpenAI-Agent/1.0"
+})
+token = auth_result["access_token"]
+
+# Secure agent creation
+agent_config = {
+    "name": "ResearchAssistant", 
+    "instructions": "You are a research assistant",
+    "tools": [weather_tool, search_tool]
+}
+
+if openai_adapter.validate_agent_creation(agent_config, token):
+    # Create OpenAI agent
+    from agents import Agent
+    agent = Agent(**agent_config)
+    print("✅ Agent created with zero trust validation")
+
+# Secure tool execution
+secure_weather = openai_adapter.create_secure_function_tool(weather_tool, token)
+result = secure_weather(location="San Francisco", agent_id="research_assistant")
+
+# Secure runner execution with input validation
+validation_result = openai_adapter.secure_runner_execution(
+    agent_config=agent_config,
+    user_input="What's the weather in NYC?",
+    token=token
+)
+
+if validation_result["allowed"]:
+    from agents import Runner
+    result = Runner.run_sync(agent, validation_result["user_input"])
+```
+
+**Key Security Features for OpenAI Agents:**
+
+- **Agent Creation Validation**: Validates agent configurations and creator permissions
+- **Tool Execution Security**: Validates function calls and detects malicious arguments
+- **Input Sanitization**: Comprehensive validation of user inputs to prevent injection attacks
+- **Agent Handoff Control**: Validates agent-to-agent communication and control transfers
+- **Session Management**: Secure session creation, updates, and destruction
+- **Guardrail Integration**: Security validation for OpenAI guardrail operations
+- **Comprehensive Monitoring**: Detailed logging of all agent operations and security events
+
+For detailed documentation, see [OpenAI Agents Integration Guide](docs/openai_agents_integration.md).
+
 ## Security Considerations
 
 **API Key Management**:

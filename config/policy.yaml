@@ -91,6 +91,60 @@ policies:
       effect: "allow"
       priority: 70
 
+    - name: "allow_openai_agent_creation"
+      conditions:
+        action_type: "create_agent"
+        framework: "openai_agents"
+        agent_name: {"regex": "^(Research|Customer|Data|Analysis).*"}
+      effect: "allow"
+      priority: 85
+
+    - name: "allow_openai_tool_execution"
+      conditions:
+        action_type: "execute_tool" 
+        framework: "openai_agents"
+        tool_name: {"regex": "^(weather|search|calculator|research).*"}
+      effect: "allow"
+      priority: 80
+
+    - name: "allow_openai_agent_handoffs"
+      conditions:
+        action_type: "agent_handoff"
+        framework: "openai_agents"
+        source_agent: {"regex": "^(research_|customer_|data_).*"}
+        target_agent: {"regex": "^(research_|customer_|data_).*"}
+      effect: "allow"
+      priority: 75
+
+    - name: "allow_openai_session_management"
+      conditions:
+        action_type: "session_operation"
+        framework: "openai_agents"
+        operation: {"in": ["create", "update", "destroy"]}
+      effect: "allow"
+      priority: 70
+
+    - name: "allow_openai_guardrail_execution"
+      conditions:
+        action_type: "execute_guardrail"
+        framework: "openai_agents"
+      effect: "allow"
+      priority: 68
+
+    - name: "allow_openai_runner_execution"
+      conditions:
+        action_type: "runner_execution"
+        framework: "openai_agents"
+      effect: "allow"
+      priority: 65
+
+    - name: "deny_suspicious_openai_operations"
+      conditions:
+        framework: "openai_agents"
+        action_type: {"in": ["create_agent", "execute_tool", "runner_execution"]}
+      effect: "deny"
+      priority: 150
+
     - name: "allow_basic_tasks"
       conditions:
         action_type: "execute_task"
