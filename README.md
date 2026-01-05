@@ -703,6 +703,11 @@ monitoring:
       - "vertex"
 ```
 
+### Security Monitor Configuration
+
+For the full `SecurityMonitor` configuration schema (including GeoIP, threat intel, and
+LLM feature flags), see [`docs/configuration.md`](docs/configuration.md).
+
 ### Usage Example
 
 ```python

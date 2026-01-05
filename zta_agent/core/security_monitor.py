@@ -2,21 +2,22 @@
 Security Monitoring System for Zero Trust Agent
 """
 
+import os
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 import ipaddress
 import geoip2.database
 import requests
 from dataclasses import dataclass
 import json
-import logging
 from threading import Lock
 import schedule
 import threading
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .security_logger import SecurityLogger
-from .security_analysis.llm_analyzer import LLMAnalyzer, AnalysisResult
+from .security_analysis.llm_analyzer import LLMAnalyzer
 
 @dataclass
 class SecurityEvent:
@@ -52,56 +53,102 @@ class RateLimiter:
             self.requests[key].append(now)
             return True
 
+class RateLimitConfig(BaseModel):
+    """Configuration for a single rate limiter."""
+    window: int = 60
+    max_requests: int = 100
+
+class RateLimitsConfig(BaseModel):
+    """Configuration for all rate limiters."""
+    auth: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig(window=300, max_requests=10))
+    api: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig(window=60, max_requests=100))
+
+class SecurityMonitorConfig(BaseModel):
+    """Validated configuration for the security monitor."""
+    model_config = ConfigDict(extra="allow")
+
+    geoip_enabled: Optional[bool] = None
+    geoip_db_path: Optional[str] = None
+    threat_intel_enabled: Optional[bool] = None
+    threat_intel_api_key: Optional[str] = None
+    llm_enabled: Optional[bool] = None
+    llm: Optional[Dict[str, Any]] = None
+    alert_thresholds: Dict[str, int] = Field(default_factory=dict)
+    ip_blacklist: List[str] = Field(default_factory=list)
+    ip_whitelist: List[str] = Field(default_factory=list)
+    rate_limits: RateLimitsConfig = Field(default_factory=RateLimitsConfig)
+    max_auth_failures: int = 5
+    log_dir: str = "logs"
+
+    @model_validator(mode="after")
+    def apply_feature_defaults(self) -> "SecurityMonitorConfig":
+        if self.geoip_enabled is None:
+            self.geoip_enabled = bool(self.geoip_db_path)
+        if self.threat_intel_enabled is None:
+            self.threat_intel_enabled = bool(self.threat_intel_api_key)
+        if self.llm_enabled is None:
+            self.llm_enabled = bool(self.llm)
+        return self
+
 class SecurityMonitor:
     """Advanced security monitoring system"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Optional[Dict] = None):
         """
         Initialize security monitor
         
         Args:
             config: Configuration dictionary containing:
+                - geoip_enabled: Enable GeoIP lookups (defaults to True if geoip_db_path is set)
                 - geoip_db_path: Path to GeoIP database
+                - threat_intel_enabled: Enable threat intelligence lookups (defaults to True if api key is set)
                 - threat_intel_api_key: API key for threat intelligence
                 - alert_thresholds: Dictionary of event types and their alert thresholds
                 - ip_blacklist: List of blocked IP addresses/ranges
                 - ip_whitelist: List of trusted IP addresses/ranges
                 - rate_limits: Dictionary of rate limit configurations
+                - llm_enabled: Enable LLM-based analysis (defaults to True if llm config is set)
                 - llm: LLM configuration for security analysis
         """
-        self.config = config
-        self.logger = SecurityLogger(config)
+        self.config = SecurityMonitorConfig.model_validate(config or {})
+        self.logger = SecurityLogger(self.config.model_dump())
         
         # Initialize LLM analyzer if configured
         self.llm_analyzer = None
-        if "llm" in config:
-            self.llm_analyzer = LLMAnalyzer(config["llm"])
+        if self.config.llm_enabled and self.config.llm:
+            self.llm_analyzer = LLMAnalyzer(self.config.llm)
         
         # Initialize GeoIP database
-        self.geoip_reader = geoip2.database.Reader(config["geoip_db_path"])
+        self.geoip_reader = None
+        if (
+            self.config.geoip_enabled
+            and self.config.geoip_db_path
+            and os.path.exists(self.config.geoip_db_path)
+        ):
+            self.geoip_reader = geoip2.database.Reader(self.config.geoip_db_path)
         
         # Initialize rate limiters
         self.rate_limiters = {
             "auth": RateLimiter(
-                config["rate_limits"]["auth"]["window"],
-                config["rate_limits"]["auth"]["max_requests"]
+                self.config.rate_limits.auth.window,
+                self.config.rate_limits.auth.max_requests
             ),
             "api": RateLimiter(
-                config["rate_limits"]["api"]["window"],
-                config["rate_limits"]["api"]["max_requests"]
+                self.config.rate_limits.api.window,
+                self.config.rate_limits.api.max_requests
             )
         }
         
         # Initialize counters and caches
         self.event_counters = defaultdict(lambda: defaultdict(int))
         self.suspicious_ips = set()
-        self.blocked_ips = self._load_ip_lists(config["ip_blacklist"])
-        self.trusted_ips = self._load_ip_lists(config["ip_whitelist"])
+        self.blocked_ips = self._load_ip_lists(self.config.ip_blacklist)
+        self.trusted_ips = self._load_ip_lists(self.config.ip_whitelist)
         self.auth_failures = defaultdict(list)
         self.session_cache = {}
         
         # Alert thresholds
-        self.alert_thresholds = config["alert_thresholds"]
+        self.alert_thresholds = self.config.alert_thresholds
         
         # Start background tasks
         self._start_background_tasks()
@@ -137,6 +184,8 @@ class SecurityMonitor:
 
     def _get_location_info(self, ip: str) -> Optional[Dict]:
         """Get location information for an IP address"""
+        if not self.geoip_reader:
+            return None
         try:
             response = self.geoip_reader.city(ip)
             return {
@@ -151,10 +200,12 @@ class SecurityMonitor:
 
     def _get_threat_intel(self, ip: str) -> Optional[Dict]:
         """Query threat intelligence data for an IP"""
+        if not (self.config.threat_intel_enabled and self.config.threat_intel_api_key):
+            return None
         try:
             response = requests.get(
                 f"https://api.abuseipdb.com/api/v2/check",
-                headers={"Key": self.config["threat_intel_api_key"]},
+                headers={"Key": self.config.threat_intel_api_key},
                 params={"ipAddress": ip, "maxAgeInDays": 90}
             )
             if response.status_code == 200:
@@ -235,7 +286,7 @@ class SecurityMonitor:
                                  if t > time.time() - 3600]
                 self.auth_failures[event.source_ip] = recent_failures
 
-                if len(recent_failures) >= self.config["max_auth_failures"]:
+                if len(recent_failures) >= self.config.max_auth_failures:
                     self.suspicious_ips.add(event.source_ip)
                     self._trigger_alert("excessive_auth_failures", {
                         "ip": event.source_ip,
@@ -252,8 +303,10 @@ class SecurityMonitor:
                 })
 
         # Perform LLM analysis for suspicious events
-        if (event.severity in ["warning", "error", "critical"] and 
-            self.llm_analyzer is not None):
+        if (
+            event.severity in ["warning", "error", "critical"]
+            and self.llm_analyzer is not None
+        ):
             self._perform_llm_analysis(event)
 
     def _perform_llm_analysis(self, event: SecurityEvent) -> None:
@@ -470,5 +523,5 @@ class SecurityMonitor:
 
     def __del__(self):
         """Cleanup resources"""
-        if hasattr(self, 'geoip_reader'):
+        if self.geoip_reader:
             self.geoip_reader.close()
