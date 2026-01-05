@@ -186,6 +186,12 @@ class NewFrameworkAdapter:
 
 The Zero Trust Agent implements a robust authentication system with the following features:
 
+### Documentation
+
+* Authentication providers and configuration: `docs/authentication.md`
+* Roadmap and maturity signals: `docs/roadmap.md`
+* End-to-end Google OAuth example: `examples/google_oauth_end_to_end.py`
+
 ### Core Authentication Features
 
 1. **Secure Token Management**

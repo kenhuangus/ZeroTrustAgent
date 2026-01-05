@@ -1,0 +1,44 @@
+# Authentication provider configuration examples.
+# Copy the provider blocks you need into config/policy.yaml under auth:
+
+auth:
+  # Google OAuth configuration
+  google:
+    client_id: "your-google-client-id"
+    client_secret: "your-google-client-secret"
+    redirect_uri: "http://localhost:8080/oauth2callback"
+    scope: "openid email profile"
+
+  # GitHub OAuth configuration
+  github:
+    client_id: "your-github-client-id"
+    client_secret: "your-github-client-secret"
+    redirect_uri: "http://localhost:8080/auth/github/callback"
+    scope: "read:user user:email"
+
+  # Microsoft Entra ID configuration
+  entra:
+    client_id: "your-app-client-id"
+    client_secret: "your-client-secret"
+    tenant_id: "your-tenant-id"
+    redirect_uri: "http://localhost:8080/auth/entra/callback"
+    scope: "openid email profile User.Read"
+
+  # Generic OAuth 2.0 configuration
+  oauth:
+    client_id: "your-client-id"
+    client_secret: "your-client-secret"
+    authorize_url: "https://provider.example.com/oauth/authorize"
+    token_url: "https://provider.example.com/oauth/token"
+    userinfo_url: "https://provider.example.com/oauth/userinfo"
+    redirect_uri: "http://localhost:8080/oauth/callback"
+    scope: "openid profile email"
+
+  # Certificate-based authentication configuration
+  certificate:
+    ca_cert_path: "/path/to/ca.crt"
+    verify_crl: true
+    crl_path: "/path/to/crl.pem"
+    allowed_subjects:
+      - "O=YourOrg"
+      - "OU=Agents"
