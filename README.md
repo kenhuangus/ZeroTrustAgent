@@ -51,14 +51,34 @@ graph TD
 
 ## Installation & Setup
 
+### Core install (security/auth only)
+
+```bash
+pip install zta-agent
+```
+
+### Optional capability groups
+
+```bash
+# LLM SDKs and framework integrations
+pip install "zta-agent[llm]"
+
+# ML/analytics stack
+pip install "zta-agent[ml]"
+
+# Threat intelligence tooling
+pip install "zta-agent[threat-intel]"
+
+# Developer tooling (tests)
+pip install "zta-agent[dev]"
+```
+
+### From source
+
 ```bash
 git clone https://github.com/kenhuangus/ZeroTrustAgent.git
 cd ZeroTrustAgent
-pip install build
-python -m build
 pip install -e .
-
-
 ```
 
 ### Basic Configuration
