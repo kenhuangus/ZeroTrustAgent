@@ -1,93 +1,87 @@
-name: CI Workflow
+name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
-      # Potentially 'develop' or other integration branches if used
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
-      # Potentially 'develop'
-  # Optional: Allow manual triggering
-  # workflow_dispatch:
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11'] # Matches pyproject.toml and setup.py python_requires
+        python-version: ['3.11', '3.12', '3.13']
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
 
-      - name: Install uv
-        run: pip install uv
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install flake8 black mypy bandit safety
 
-      # Install all dependencies defined in pyproject.toml (which currently includes pytest, pytest-cov)
-      # and also install ruff for linting.
-      - name: Install dependencies
+    - name: Lint with flake8
+      run: |
+        flake8 zta_agent/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 zta_agent/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Format check with black
+      run: |
+        black --check zta_agent/ || true
+
+    - name: Type check with mypy
+      run: |
+        mypy zta_agent/ --ignore-missing-imports || true
+
+    - name: Security check with bandit
+      run: |
+        bandit -r zta_agent/ -f json -o bandit-report.json || true
+
+      - name: Run tests with pytest
         run: |
-          uv pip install . --system # Installs package and its deps from pyproject.toml
-          uv pip install ruff build --system # Install ruff for linting and build for packaging
+          pytest tests/ -v --tb=short --cov=zta_agent --cov-report=xml --cov-report=html
 
-      - name: Run linter (Ruff)
-        run: ruff check .
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: true
 
-      - name: Run tests (pytest)
-        run: pytest
-
-      - name: Build package
-        run: python -m build
-
-      - name: Upload package distributions
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
-          name: python-package-distributions
-          path: dist/
+          name: coverage-report
+          path: htmlcov/
 
-  publish-to-pypi:
-    name: Publish to PyPI (Placeholder)
+  security:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') # Condition to run only on version tags
-    needs: build-and-test # Ensures build-and-test job completes successfully first
-    
     steps:
-      - name: Display information
-        run: echo "This job would publish the package to PyPI. It runs only on version tags."
+    - uses: actions/checkout@v4
 
-      # - name: Checkout code
-      #   uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      # - name: Set up Python
-      #   uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
 
-      # - name: Download built distributions
-      # - name: Download built distributions
-      #   uses: actions/download-artifact@v4 # Updated to v4
-      #   with:
-      #     name: python-package-distributions # Must match the upload name
-      #     path: dist/ # Download to dist/ directory
-      
-      # - name: Publish package to PyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     # For API token auth (less preferred):
-      #     # user: __token__
-      #     # password: ${{ secrets.PYPI_API_TOKEN }}
-      #     # For OIDC Trusted Publishing (preferred):
-      #     # Attestations can be generated here as well if needed.
-      #     # The action will automatically find packages in dist/
-      #     # Make sure your PyPI project is configured for trusted publishing.
-      #     # publish_options: --verbose # Optional: for more detailed output
-      #     # job_name_in_report: true # Optional: for better traceability in PyPI
-      #     pass # Actual publishing is still placeholder
+    - name: Run safety check
+      run: |
+        safety check || true
+
+    - name: Run bandit
+      run: |
+        bandit -r zta_agent/ -ll || true

@@ -296,8 +296,8 @@ class TestPolicyEngine(unittest.TestCase):
 
     # 5. Unsupported Operator
     def test_evaluate_condition_unsupported_operator(self):
-        with self.assertRaisesRegex(ValueError, "Unsupported operator: 'invalid_op'"):
-            self.policy_engine._evaluate_condition("value", {"invalid_op": "target"})
+        with self.assertRaisesRegex(ValueError, "Unsupported operator: invalid_op"):
+            self.policy_engine._evaluate_condition("value", "invalid_op", "target")
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)

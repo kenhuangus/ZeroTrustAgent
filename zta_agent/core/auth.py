@@ -343,20 +343,23 @@ class AuthenticationManager:
             refresh_token = self.generate_token(identity, "refresh")
 
             self.security_logger.log_authentication_attempt(
-                identity, True, ip_address, user_agent
+                identity, True, ip_address, user_agent,
+                details={"provider": "password"}
             )
 
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
                 "token_type": "bearer",
-                "expires_in": self.token_expiry
+                "expires_in": self.token_expiry,
+                "identity": identity
             }
         
         # Record failed attempt
         self.record_failed_attempt(identity)
         self.security_logger.log_authentication_attempt(
-            identity, False, ip_address, user_agent
+            identity, False, ip_address, user_agent,
+            details={"provider": "password"}
         )
         return None
 
