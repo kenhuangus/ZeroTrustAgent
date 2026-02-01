@@ -1,4 +1,5 @@
 """ Integration adapters for AI frameworks. """
+
 from .crewai_adapter import CrewAIAdapter
 from .autogen_adapter import AutoGenAdapter
 from .openai_agent_adapter import OpenAIAgentAdapter
@@ -10,6 +11,10 @@ from .haystack_adapter import HaystackAdapter
 from .pydantic_ai_adapter import PydanticAIAdapter
 from .superagent_adapter import SuperagentAdapter
 from .controlflow_adapter import ControlFlowAdapter
+from .claude_agent_adapter import ClaudeAgentAdapter
+from .google_agent_adapter import GoogleAgentAdapter
+from .ibm_watsonx_adapter import IBMWatsonXAdapter
+from .bedrock_agent_adapter import BedrockAgentAdapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -22,5 +27,9 @@ __all__ = [
     'HaystackAdapter',
     'PydanticAIAdapter',
     'SuperagentAdapter',
-    'ControlFlowAdapter'
+    'ControlFlowAdapter',
+    'ClaudeAgentAdapter',
+    'GoogleAgentAdapter',
+    'IBMWatsonXAdapter',
+    'BedrockAgentAdapter'
 ]

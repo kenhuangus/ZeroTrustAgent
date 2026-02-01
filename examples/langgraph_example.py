@@ -1,14 +1,14 @@
 """
-Functionality:  LangGraph Agent Example for ZTA/ "ZeroTrustAgent"  Agentic Authentication Framework
+Functionality: LangGraph Agent Example for ZTA/ "ZeroTrustAgent" Agentic Authentication Framework
 
-This example demonstrates how to use LangGraph Agent to define a simple agent workflow
-that analyzes user access requests in a Zero Trust agent model and decides whether to approve or deny access.
+This example demonstrates how to use LangGraph Agent to define a simple agent workflow that analyzes user access requests in a Zero Trust agent model and decides whether to approve or deny access.
 
-Output:
-    Results are logged and persisted to langgraph_agent_output.json
+Uses local Ollama model (glm-4.7-flash:latest) at host spark-bb66 instead of OpenAI.
 
-# @Author: Akram Sheriff 
-# Date:  30th of  April 2025
+Output: Results are logged and persisted to langgraph_agent_output.json
+
+# @Author: Akram Sheriff
+# Date: 30th of April 2025
 """
 
 import os
@@ -16,7 +16,7 @@ import json
 import logging
 from typing import TypedDict, Literal
 
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOllama
 from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
@@ -30,10 +30,12 @@ logging.basicConfig(
 
 # -- Load env vars --
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    logging.error("OPENAI_API_KEY not set. Please set it in your environment or .env file.")
-    raise EnvironmentError("OPENAI_API_KEY not set.")
+
+# Ollama configuration
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://spark-bb66:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "glm-4.7-flash:latest")
+
+logging.info(f"Using Ollama at {OLLAMA_HOST} with model {OLLAMA_MODEL}")
 
 # -- State definition --
 class AgentState(TypedDict):
@@ -43,15 +45,17 @@ class AgentState(TypedDict):
 
 # -- Tooling --
 def access_policy_check(request: str) -> str:
-    """
-    Mock tool to analyze access request sensitivity.
-    """
+    """ Mock tool to analyze access request sensitivity. """
     if "admin" in request.lower() or "sensitive" in request.lower():
         return "Request involves high-privilege access. Extra scrutiny required."
     return "Request appears to be low-privilege. No red flags found."
 
 # -- LLM initialization --
-llm = ChatOpenAI(model="gpt-4", temperature=0)
+llm = ChatOllama(
+    model=OLLAMA_MODEL,
+    base_url=OLLAMA_HOST,
+    temperature=0
+)
 
 # -- LangGraph Node: Analyze request --
 def analyze_request(state: AgentState) -> AgentState:
@@ -79,11 +83,9 @@ def decide_access(state: AgentState) -> AgentState:
 graph = StateGraph(AgentState)
 graph.add_node("Analyze", analyze_request)
 graph.add_node("Decide", decide_access)
-
 graph.set_entry_point("Analyze")
 graph.add_edge("Analyze", "Decide")
 graph.add_edge("Decide", END)
-
 app = graph.compile()
 
 # -- Output persistence helper --
@@ -102,10 +104,8 @@ if __name__ == "__main__":
         "reasoning": "",
         "decision": "",
     }
-
     logging.info("Starting LangGraph agent...")
     final_state = app.invoke(example_input)
     print("Final Output:")
     print(json.dumps(final_state, indent=4))
-
     persist_output(final_state, "langgraph_agent_output.json")
