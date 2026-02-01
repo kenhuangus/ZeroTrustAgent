@@ -9,6 +9,7 @@ from .ag2_adapter import AG2Adapter
 from .haystack_adapter import HaystackAdapter
 from .pydantic_ai_adapter import PydanticAIAdapter
 from .superagent_adapter import SuperagentAdapter
+from .controlflow_adapter import ControlFlowAdapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -20,5 +21,6 @@ __all__ = [
     'AG2Adapter',
     'HaystackAdapter',
     'PydanticAIAdapter',
-    'SuperagentAdapter'
+    'SuperagentAdapter',
+    'ControlFlowAdapter'
 ]
