@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional, List, Callable, Union
 import functools
 import json
 import inspect
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..core.auth import AuthenticationManager
 from ..core.policy import PolicyEngine
@@ -135,7 +135,7 @@ class OpenAIAgentAdapter:
                 "agent_id": agent_id,
                 "executor": claims.get("identity"),
                 "allowed": is_allowed,
-                "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
             },
             "INFO" if is_allowed else "WARNING"
         )
@@ -228,8 +228,8 @@ class OpenAIAgentAdapter:
         if is_allowed and operation == "create":
             self.active_sessions[session_id] = {
                 "created_by": claims.get("identity"),
-                "created_at": datetime.utcnow().isoformat(),
-                "last_activity": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_activity": datetime.now(timezone.utc).isoformat()
             }
         elif operation == "destroy" and session_id in self.active_sessions:
             del self.active_sessions[session_id]
@@ -293,7 +293,7 @@ class OpenAIAgentAdapter:
                               session_id: Optional[str] = None,
                               token: str = "") -> Dict:
         """Comprehensive security validation for runner execution."""
-        execution_id = f"exec_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}"
+        execution_id = f"exec_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
         
         # Validate authentication
         claims = self.auth_manager.validate_token(token)
