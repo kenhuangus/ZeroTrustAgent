@@ -8,6 +8,7 @@ from .semantic_kernel_adapter import SemanticKernelAdapter
 from .ag2_adapter import AG2Adapter
 from .haystack_adapter import HaystackAdapter
 from .pydantic_ai_adapter import PydanticAIAdapter
+from .superagent_adapter import SuperagentAdapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -18,5 +19,6 @@ __all__ = [
     'SemanticKernelAdapter',
     'AG2Adapter',
     'HaystackAdapter',
-    'PydanticAIAdapter'
+    'PydanticAIAdapter',
+    'SuperagentAdapter'
 ]
