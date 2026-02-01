@@ -6,6 +6,7 @@ from .langgraph_adapter import LangGraphAdapter
 from .llama_index_adapter import LlamaIndexAdapter
 from .semantic_kernel_adapter import SemanticKernelAdapter
 from .ag2_adapter import AG2Adapter
+from .haystack_adapter import HaystackAdapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -14,5 +15,6 @@ __all__ = [
     'LangGraphAdapter',
     'LlamaIndexAdapter',
     'SemanticKernelAdapter',
-    'AG2Adapter'
+    'AG2Adapter',
+    'HaystackAdapter'
 ]
