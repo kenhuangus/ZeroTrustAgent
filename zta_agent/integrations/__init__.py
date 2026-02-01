@@ -5,6 +5,7 @@ from .openai_agent_adapter import OpenAIAgentAdapter
 from .langgraph_adapter import LangGraphAdapter
 from .llama_index_adapter import LlamaIndexAdapter
 from .semantic_kernel_adapter import SemanticKernelAdapter
+from .ag2_adapter import AG2Adapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -12,5 +13,6 @@ __all__ = [
     'OpenAIAgentAdapter',
     'LangGraphAdapter',
     'LlamaIndexAdapter',
-    'SemanticKernelAdapter'
+    'SemanticKernelAdapter',
+    'AG2Adapter'
 ]
