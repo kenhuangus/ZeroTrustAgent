@@ -7,6 +7,7 @@ from .llama_index_adapter import LlamaIndexAdapter
 from .semantic_kernel_adapter import SemanticKernelAdapter
 from .ag2_adapter import AG2Adapter
 from .haystack_adapter import HaystackAdapter
+from .pydantic_ai_adapter import PydanticAIAdapter
 
 __all__ = [
     'CrewAIAdapter',
@@ -16,5 +17,6 @@ __all__ = [
     'LlamaIndexAdapter',
     'SemanticKernelAdapter',
     'AG2Adapter',
-    'HaystackAdapter'
+    'HaystackAdapter',
+    'PydanticAIAdapter'
 ]
