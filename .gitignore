@@ -62,3 +62,4 @@ Thumbs.db
 
 # PyInstaller files
 *.spec
+test_env/
