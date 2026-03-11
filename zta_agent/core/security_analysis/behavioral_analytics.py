@@ -1,23 +1,38 @@
 """
 Advanced Behavioral Analytics and Threat Detection
+
+This module provides optional ML-based behavioral analytics.
+ML dependencies are optional and the module will work without them.
 """
 
 from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass
-import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-import pandas as pd
 from datetime import datetime, timedelta
-import json
 import logging
 from collections import defaultdict
 import ipaddress
-import tensorflow as tf
-from tensorflow.keras import layers, models
-import joblib
-import pickle
-from threading import Lock
+
+# Optional ML imports - will be None if not installed
+try:
+    import numpy as np
+    from sklearn.ensemble import IsolationForest
+    from sklearn.preprocessing import StandardScaler
+    import joblib
+    ML_AVAILABLE = True
+except ImportError:
+    np = None
+    IsolationForest = None
+    StandardScaler = None
+    joblib = None
+    ML_AVAILABLE = False
+
+try:
+    from tensorflow.keras import layers, models
+    ML_TF_AVAILABLE = True
+except ImportError:
+    layers = None
+    models = None
+    ML_TF_AVAILABLE = False
 
 @dataclass
 class UserBehaviorProfile:
@@ -45,26 +60,38 @@ class NetworkBehaviorProfile:
     risk_score: float = 0.0
 
 class BehavioralAnalytics:
-    """Advanced behavioral analytics system"""
+    """Advanced behavioral analytics system with optional ML support"""
     
     def __init__(self, config: Dict):
         self.config = config
         self.logger = logging.getLogger(__name__)
         
-        # Initialize ML models
-        self.isolation_forest = IsolationForest(
-            contamination=0.1,
-            random_state=42
-        )
-        self.scaler = StandardScaler()
+        # Check if ML libraries are available
+        if not ML_AVAILABLE:
+            self.logger.warning(
+                "ML libraries not available. Behavioral analytics will use "
+                "simplified rules-based detection without ML models."
+            )
         
-        # Initialize neural network for sequence prediction
-        self.sequence_model = self._build_sequence_model()
+        # Initialize ML models only if available
+        self.isolation_forest = None
+        self.scaler = None
+        self.sequence_model = None
+        
+        if ML_AVAILABLE:
+            self.isolation_forest = IsolationForest(
+                contamination=0.1,
+                random_state=42
+            )
+            self.scaler = StandardScaler()
+            
+            if ML_TF_AVAILABLE:
+                self.sequence_model = self._build_sequence_model()
         
         # User and network profiles
         self.user_profiles: Dict[str, UserBehaviorProfile] = {}
         self.network_profiles: Dict[str, NetworkBehaviorProfile] = {}
-        self.profile_lock = Lock()
+        self.profile_lock = __import__('threading').Lock()
         
         # Load pre-trained models if available
         self._load_models()
@@ -77,8 +104,10 @@ class BehavioralAnalytics:
             "categorical": self._extract_categorical_features
         }
 
-    def _build_sequence_model(self) -> models.Model:
+    def _build_sequence_model(self):
         """Build neural network for sequence prediction"""
+        if not ML_TF_AVAILABLE:
+            return None
         model = models.Sequential([
             layers.LSTM(64, input_shape=(10, 50)),
             layers.Dropout(0.2),
@@ -95,21 +124,27 @@ class BehavioralAnalytics:
 
     def _load_models(self) -> None:
         """Load pre-trained models"""
+        if not ML_AVAILABLE:
+            return
         try:
-            model_path = self.config["model_path"]
+            model_path = self.config.get("model_path", "models/")
             self.isolation_forest = joblib.load(f"{model_path}/isolation_forest.pkl")
             self.scaler = joblib.load(f"{model_path}/scaler.pkl")
-            self.sequence_model.load_weights(f"{model_path}/sequence_model.h5")
+            if self.sequence_model:
+                self.sequence_model.load_weights(f"{model_path}/sequence_model.h5")
         except Exception as e:
             self.logger.warning(f"Could not load pre-trained models: {str(e)}")
 
     def _save_models(self) -> None:
         """Save trained models"""
+        if not ML_AVAILABLE:
+            return
         try:
-            model_path = self.config["model_path"]
+            model_path = self.config.get("model_path", "models/")
             joblib.dump(self.isolation_forest, f"{model_path}/isolation_forest.pkl")
             joblib.dump(self.scaler, f"{model_path}/scaler.pkl")
-            self.sequence_model.save_weights(f"{model_path}/sequence_model.h5")
+            if self.sequence_model:
+                self.sequence_model.save_weights(f"{model_path}/sequence_model.h5")
         except Exception as e:
             self.logger.error(f"Could not save models: {str(e)}")
 
@@ -131,24 +166,29 @@ class BehavioralAnalytics:
                 profile = self._create_user_profile()
                 self.user_profiles[user_id] = profile
 
-            # Extract features
-            features = self._extract_user_features(event_data, profile)
-            
-            # Normalize features
-            normalized_features = self.scaler.transform([features])
-            
-            # Get anomaly score from isolation forest
-            anomaly_score = self.isolation_forest.score_samples([features])[0]
-            
-            # Get sequence prediction
-            sequence_score = self._predict_sequence(user_id, features)
-            
-            # Calculate final risk score
-            risk_score = self._calculate_risk_score(
-                anomaly_score,
-                sequence_score,
-                profile
-            )
+            # Use ML-based detection if available, otherwise use rules-based
+            if ML_AVAILABLE and self.isolation_forest is not None:
+                # Extract features
+                features = self._extract_user_features(event_data, profile)
+                
+                # Normalize features
+                normalized_features = self.scaler.transform([features])
+                
+                # Get anomaly score from isolation forest
+                anomaly_score = self.isolation_forest.score_samples([features])[0]
+                
+                # Get sequence prediction
+                sequence_score = self._predict_sequence(user_id, features)
+                
+                # Calculate final risk score
+                risk_score = self._calculate_risk_score(
+                    anomaly_score,
+                    sequence_score,
+                    profile
+                )
+            else:
+                # Rules-based detection without ML
+                risk_score = self._rules_based_risk_score(event_data, profile)
             
             # Identify anomaly types
             anomaly_types = self._identify_anomalies(
@@ -180,23 +220,101 @@ class BehavioralAnalytics:
                 profile = self._create_network_profile()
                 self.network_profiles[network_id] = profile
 
-            # Extract features
-            features = self._extract_network_features(event_data, profile)
-            
-            # Get anomaly score
-            anomaly_score = self.isolation_forest.score_samples([features])[0]
-            
-            # Identify anomalies
-            anomaly_types = self._identify_network_anomalies(
-                event_data,
-                profile,
-                anomaly_score
-            )
-            
-            # Update profile
-            self._update_network_profile(profile, event_data)
-            
-            return anomaly_score, anomaly_types
+            # Use ML-based detection if available, otherwise use rules-based
+            if ML_AVAILABLE and self.isolation_forest is not None:
+                # Extract features
+                features = self._extract_network_features(event_data, profile)
+                
+                # Get anomaly score
+                anomaly_score = self.isolation_forest.score_samples([features])[0]
+                
+                # Identify anomalies
+                anomaly_types = self._identify_network_anomalies(
+                    event_data,
+                    profile,
+                    anomaly_score
+                )
+                
+                return anomaly_score, anomaly_types
+            else:
+                # Rules-based detection without ML
+                anomaly_score = self._rules_based_network_risk_score(event_data, profile)
+                anomaly_types = self._identify_network_anomalies(
+                    event_data,
+                    profile,
+                    anomaly_score
+                )
+                return anomaly_score, anomaly_types
+
+    def _rules_based_risk_score(
+        self,
+        event_data: Dict,
+        profile: UserBehaviorProfile
+    ) -> float:
+        """Calculate risk score using rules-based detection (no ML)"""
+        risk_score = 0.0
+        
+        # Time-based risk
+        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        if hour < 6 or hour > 22:
+            risk_score += 0.1
+        
+        # Location-based risk
+        if "location_info" in event_data:
+            loc = event_data["location_info"]
+            if loc.get("country") not in profile.typical_locations:
+                risk_score += 0.2
+        
+        # Device-based risk
+        if "user_agent" in event_data:
+            if event_data["user_agent"] not in profile.typical_devices:
+                risk_score += 0.1
+        
+        # Resource access risk
+        if "resource" in event_data:
+            if event_data["resource"] not in profile.typical_resources:
+                risk_score += 0.15
+        
+        # Rate-based risk
+        if "request_rate" in event_data:
+            if event_data["request_rate"] > profile.typical_request_rate * 2:
+                risk_score += 0.2
+        
+        return min(1.0, max(0.0, risk_score))
+
+    def _rules_based_network_risk_score(
+        self,
+        event_data: Dict,
+        profile: NetworkBehaviorProfile
+    ) -> float:
+        """Calculate network risk score using rules-based detection (no ML)"""
+        risk_score = 0.0
+        
+        # Protocol-based risk
+        if "protocol" in event_data:
+            if event_data["protocol"] not in profile.typical_protocols:
+                risk_score += 0.15
+        
+        # Port-based risk
+        if "port" in event_data:
+            if event_data["port"] not in profile.typical_ports:
+                risk_score += 0.1
+        
+        # Bandwidth-based risk
+        if "bandwidth" in event_data:
+            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            typical = profile.bandwidth_patterns.get(hour, 0)
+            if event_data["bandwidth"] > typical * 2 and typical > 0:
+                risk_score += 0.15
+        
+        # Connection-based risk
+        if "connections" in event_data:
+            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            typical = profile.connection_patterns.get(hour, 0)
+            if event_data["connections"] > typical * 2 and typical > 0:
+                risk_score += 0.1
+        
+        return min(1.0, max(0.0, risk_score))
 
     def _extract_user_features(
         self,
@@ -229,7 +347,7 @@ class BehavioralAnalytics:
             
         # Request rate features
         current_rate = event_data.get("request_rate", 0)
-        features.append(current_rate / profile.typical_request_rate)
+        features.append(current_rate / profile.typical_request_rate if profile.typical_request_rate > 0 else 0)
         
         return features
 
@@ -270,6 +388,8 @@ class BehavioralAnalytics:
 
     def _predict_sequence(self, user_id: str, features: List[float]) -> float:
         """Predict if current action sequence is anomalous"""
+        if not self.sequence_model:
+            return 0.5
         try:
             # Get recent feature history
             feature_history = self._get_feature_history(user_id)
@@ -293,7 +413,7 @@ class BehavioralAnalytics:
         profile: UserBehaviorProfile
     ) -> float:
         """Calculate final risk score"""
-        weights = self.config["risk_weights"]
+        weights = self.config.get("risk_weights", {"anomaly": 0.4, "sequence": 0.3, "profile": 0.3})
         
         risk_score = (
             weights["anomaly"] * (1 - anomaly_score) +  # Convert to risk
@@ -341,6 +461,7 @@ class BehavioralAnalytics:
         # Rate-based anomalies
         if (
             "request_rate" in event_data and
+            profile.typical_request_rate > 0 and
             event_data["request_rate"] > profile.typical_request_rate * 2
         ):
             anomalies.append("high_request_rate")
@@ -371,14 +492,14 @@ class BehavioralAnalytics:
         if "bandwidth" in event_data:
             hour = datetime.fromtimestamp(event_data["timestamp"]).hour
             typical = profile.bandwidth_patterns.get(str(hour), 0)
-            if event_data["bandwidth"] > typical * 2:
+            if event_data["bandwidth"] > typical * 2 and typical > 0:
                 anomalies.append("high_bandwidth")
                 
         # Connection anomalies
         if "connections" in event_data:
             hour = datetime.fromtimestamp(event_data["timestamp"]).hour
             typical = profile.connection_patterns.get(str(hour), 0)
-            if event_data["connections"] > typical * 2:
+            if event_data["connections"] > typical * 2 and typical > 0:
                 anomalies.append("high_connections")
                 
         return anomalies
@@ -491,6 +612,9 @@ class BehavioralAnalytics:
 
     def train_models(self, training_data: List[Dict]) -> None:
         """Train ML models on historical data"""
+        if not ML_AVAILABLE:
+            self.logger.warning("ML libraries not available. Cannot train models.")
+            return
         try:
             # Prepare features
             features = []
@@ -524,3 +648,17 @@ class BehavioralAnalytics:
     def get_network_profile(self, network_id: str) -> Optional[NetworkBehaviorProfile]:
         """Get network behavior profile"""
         return self.network_profiles.get(network_id)
+
+    def is_ml_available(self) -> bool:
+        """Check if ML libraries are available"""
+        return ML_AVAILABLE
+
+    def get_ml_status(self) -> Dict:
+        """Get ML library status information"""
+        return {
+            "ml_available": ML_AVAILABLE,
+            "ml_tf_available": ML_TF_AVAILABLE,
+            "isolation_forest": self.isolation_forest is not None,
+            "scaler": self.scaler is not None,
+            "sequence_model": self.sequence_model is not None
+        }

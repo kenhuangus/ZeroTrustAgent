@@ -1,5 +1,8 @@
 """
 Security Monitoring System for Zero Trust Agent
+
+This module provides optional GeoIP-based security monitoring.
+GeoIP and scheduling dependencies are optional and the module will work without them.
 """
 
 import os
@@ -8,16 +11,30 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 import ipaddress
-import geoip2.database
 import requests
 from dataclasses import dataclass
 import json
-from threading import Lock
-import schedule
+from threading import Lock, Thread
 import threading
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .security_logger import SecurityLogger
 from .security_analysis.llm_analyzer import LLMAnalyzer
+
+# Optional GeoIP import - will be None if not installed
+try:
+    import geoip2.database
+    GEOIP2_AVAILABLE = True
+except ImportError:
+    geoip2 = None
+    GEOIP2_AVAILABLE = False
+
+# Optional schedule import - will be None if not installed
+try:
+    import schedule
+    SCHEDULE_AVAILABLE = True
+except ImportError:
+    schedule = None
+    SCHEDULE_AVAILABLE = False
 
 @dataclass
 class SecurityEvent:
@@ -91,7 +108,7 @@ class SecurityMonitorConfig(BaseModel):
         return self
 
 class SecurityMonitor:
-    """Advanced security monitoring system"""
+    """Advanced security monitoring system with optional GeoIP support"""
 
     def __init__(self, config: Optional[Dict] = None):
         """
@@ -113,15 +130,22 @@ class SecurityMonitor:
         self.config = SecurityMonitorConfig.model_validate(config or {})
         self.logger = SecurityLogger(self.config.model_dump())
         
+        # Log GeoIP availability status
+        if not GEOIP2_AVAILABLE:
+            self.logger.warning(
+                "GeoIP2 library not available. GeoIP-based location lookups will be disabled."
+            )
+        
         # Initialize LLM analyzer if configured
         self.llm_analyzer = None
         if self.config.llm_enabled and self.config.llm:
             self.llm_analyzer = LLMAnalyzer(self.config.llm)
         
-        # Initialize GeoIP database
+        # Initialize GeoIP database only if available
         self.geoip_reader = None
         if (
-            self.config.geoip_enabled
+            GEOIP2_AVAILABLE
+            and self.config.geoip_enabled
             and self.config.geoip_db_path
             and os.path.exists(self.config.geoip_db_path)
         ):
@@ -184,7 +208,7 @@ class SecurityMonitor:
 
     def _get_location_info(self, ip: str) -> Optional[Dict]:
         """Get location information for an IP address"""
-        if not self.geoip_reader:
+        if not GEOIP2_AVAILABLE or not self.geoip_reader:
             return None
         try:
             response = self.geoip_reader.city(ip)
@@ -480,15 +504,25 @@ class SecurityMonitor:
 
     def _start_background_tasks(self) -> None:
         """Start background maintenance tasks"""
-        schedule.every(1).hours.do(self._cleanup_old_data)
-        
-        def run_scheduled_tasks():
-            while True:
-                schedule.run_pending()
-                time.sleep(60)
+        if SCHEDULE_AVAILABLE:
+            schedule.every(1).hours.do(self._cleanup_old_data)
+            
+            def run_scheduled_tasks():
+                while True:
+                    schedule.run_pending()
+                    time.sleep(60)
 
-        cleanup_thread = threading.Thread(target=run_scheduled_tasks, daemon=True)
-        cleanup_thread.start()
+            cleanup_thread = Thread(target=run_scheduled_tasks, daemon=True)
+            cleanup_thread.start()
+        else:
+            # Fallback: use simple time-based cleanup without schedule library
+            def periodic_cleanup():
+                while True:
+                    time.sleep(3600)  # 1 hour
+                    self._cleanup_old_data()
+            
+            cleanup_thread = Thread(target=periodic_cleanup, daemon=True)
+            cleanup_thread.start()
 
     def get_security_metrics(self) -> Dict:
         """Get current security metrics"""
@@ -525,3 +559,14 @@ class SecurityMonitor:
         """Cleanup resources"""
         if self.geoip_reader:
             self.geoip_reader.close()
+
+    def is_geoip_available(self) -> bool:
+        """Check if GeoIP2 library is available"""
+        return GEOIP2_AVAILABLE
+
+    def get_geoip_status(self) -> Dict:
+        """Get GeoIP library status information"""
+        return {
+            "geoip_available": GEOIP2_AVAILABLE,
+            "geoip_reader": self.geoip_reader is not None
+        }

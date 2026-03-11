@@ -59,7 +59,7 @@ class AuthenticationManager:
             self.auth_providers["certificate"] = CertificateProvider(config["certificate"])
 
         # Password-based auth is always available
-        self.auth_providers["password"] = self
+        self.auth_providers["password"] = self._password_authenticate
 
     def authenticate(self, credentials: Dict) -> Optional[Dict]:
         """
@@ -314,9 +314,9 @@ class AuthenticationManager:
 
         return True, ""
 
-    def authenticate(self, credentials: Dict) -> Optional[Dict]:
+    def _password_authenticate(self, credentials: Dict) -> Optional[Dict]:
         """
-        Authenticate an entity and return tokens if successful.
+        Password-based authentication handler.
         Returns both access and refresh tokens.
         """
         identity = credentials.get("identity")

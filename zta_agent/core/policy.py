@@ -2,24 +2,24 @@
 Policy Engine for Zero Trust Security Agent
 """
 
-from typing import Dict, List, Any
-from dataclasses import dataclass
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass, field
 import re
 
 @dataclass
 class Policy:
     name: str
-    conditions: Dict
+    conditions: Dict[str, Any]
     effect: str
-    priority: int
+    priority: int = 0
 
 class PolicyEngine:
     def __init__(self, config: Dict):
-        self.policies = self._load_policies(config)
+        self.policies: List[Policy] = []
+        self._load_policies(config)
 
-    def _load_policies(self, config: Dict) -> List[Policy]:
+    def _load_policies(self, config: Dict) -> None:
         """Load policies from configuration."""
-        policies = []
         for policy_config in config.get("policies", []):
             policy = Policy(
                 name=policy_config["name"],
@@ -27,8 +27,9 @@ class PolicyEngine:
                 effect=policy_config["effect"],
                 priority=policy_config.get("priority", 0)
             )
-            policies.append(policy)
-        return sorted(policies, key=lambda x: x.priority, reverse=True)
+            self.policies.append(policy)
+        
+        self.policies.sort(key=lambda x: x.priority, reverse=True)
 
     def evaluate(self, context: Dict[str, Any]) -> bool:
         """Evaluate policies against the given context."""

@@ -5,8 +5,10 @@ Credential Store for Zero Trust Security Agent
 from datetime import datetime
 from typing import Optional, Dict
 from sqlalchemy.exc import SQLAlchemyError
-from .models.base import get_session, init_db
+from sqlalchemy.orm import sessionmaker
+from .models.base import get_session, init_db, get_database_url
 from .models.credentials import Credential
+from .models.base import Base, engine
 
 class CredentialStore:
     def __init__(self):
@@ -24,6 +26,7 @@ class CredentialStore:
         Returns:
             bool: True if successful, False otherwise
         """
+        session = None
         try:
             session = get_session()
             credential = session.query(Credential).filter_by(identity=identity).first()
@@ -41,10 +44,12 @@ class CredentialStore:
             session.commit()
             return True
         except SQLAlchemyError:
-            session.rollback()
+            if session:
+                session.rollback()
             return False
         finally:
-            session.close()
+            if session:
+                session.close()
 
     def get_credentials(self, identity: str) -> Optional[Dict]:
         """
@@ -56,6 +61,7 @@ class CredentialStore:
         Returns:
             Optional[Dict]: Credential information if found, None otherwise
         """
+        session = None
         try:
             session = get_session()
             credential = session.query(Credential).filter_by(identity=identity).first()
@@ -73,7 +79,8 @@ class CredentialStore:
         except SQLAlchemyError:
             return None
         finally:
-            session.close()
+            if session:
+                session.close()
 
     def update_failed_attempts(self, identity: str, attempts: int, 
                              is_locked: bool = False) -> bool:
@@ -88,6 +95,7 @@ class CredentialStore:
         Returns:
             bool: True if successful, False otherwise
         """
+        session = None
         try:
             session = get_session()
             credential = session.query(Credential).filter_by(identity=identity).first()
@@ -100,10 +108,12 @@ class CredentialStore:
                 return True
             return False
         except SQLAlchemyError:
-            session.rollback()
+            if session:
+                session.rollback()
             return False
         finally:
-            session.close()
+            if session:
+                session.close()
 
     def reset_failed_attempts(self, identity: str) -> bool:
         """
@@ -127,6 +137,7 @@ class CredentialStore:
         Returns:
             bool: True if successful, False otherwise
         """
+        session = None
         try:
             session = get_session()
             credential = session.query(Credential).filter_by(identity=identity).first()
@@ -137,10 +148,12 @@ class CredentialStore:
                 return True
             return False
         except SQLAlchemyError:
-            session.rollback()
+            if session:
+                session.rollback()
             return False
         finally:
-            session.close()
+            if session:
+                session.close()
 
     def deactivate_credentials(self, identity: str) -> bool:
         """
@@ -152,6 +165,7 @@ class CredentialStore:
         Returns:
             bool: True if successful, False otherwise
         """
+        session = None
         try:
             session = get_session()
             credential = session.query(Credential).filter_by(identity=identity).first()
@@ -162,7 +176,66 @@ class CredentialStore:
                 return True
             return False
         except SQLAlchemyError:
-            session.rollback()
+            if session:
+                session.rollback()
             return False
         finally:
-            session.close()
+            if session:
+                session.close()
+
+    def get_failed_attempts(self, identity: str) -> int:
+        """Get the number of failed attempts for an identity."""
+        session = None
+        try:
+            session = get_session()
+            credential = session.query(Credential).filter_by(identity=identity).first()
+            if credential:
+                return credential.failed_attempts
+            return 0
+        except SQLAlchemyError:
+            return 0
+        finally:
+            if session:
+                session.close()
+
+    def get_last_attempt(self, identity: str) -> Optional[datetime]:
+        """Get the last failed attempt timestamp for an identity."""
+        session = None
+        try:
+            session = get_session()
+            credential = session.query(Credential).filter_by(identity=identity).first()
+            if credential:
+                return credential.last_failed_attempt
+            return None
+        except SQLAlchemyError:
+            return None
+        finally:
+            if session:
+                session.close()
+
+    def record_failed_attempt(self, identity: str) -> None:
+        """Record a failed authentication attempt."""
+        current = self.get_failed_attempts(identity)
+        self.update_failed_attempts(identity, current + 1)
+
+    def record_login(self, identity: str, ip_address: Optional[str] = None) -> bool:
+        """Record a successful login."""
+        session = None
+        try:
+            session = get_session()
+            credential = session.query(Credential).filter_by(identity=identity).first()
+            if credential:
+                credential.last_login_at = datetime.utcnow()
+                credential.last_login_ip = ip_address
+                credential.failed_attempts = 0
+                credential.is_locked = False
+                session.commit()
+                return True
+            return False
+        except SQLAlchemyError:
+            if session:
+                session.rollback()
+            return False
+        finally:
+            if session:
+                session.close()

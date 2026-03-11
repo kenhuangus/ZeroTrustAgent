@@ -16,6 +16,9 @@ def get_database_url():
         db_url = f'sqlite:///{db_path}'
     return db_url
 
+# Create and export engine for use by other modules
+engine = create_engine(get_database_url())
+
 def init_db():
     """Initialize the database"""
     engine = create_engine(get_database_url())
