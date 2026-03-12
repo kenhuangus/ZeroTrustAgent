@@ -8,7 +8,6 @@ from typing import Dict, Optional, Tuple, List
 import secrets
 import bcrypt
 import base64
-import hmac
 from .credential_store import CredentialStore
 from .token_store import TokenStore
 from .password_policy import PasswordPolicy
@@ -69,6 +68,9 @@ class AuthenticationManager:
             credentials: Dictionary containing:
                 - provider: Authentication provider to use
                 - Other provider-specific credentials
+        
+        Returns:
+            Optional[Dict]: Authentication result with tokens if successful, None otherwise
         """
         provider_name = credentials.get("provider", "password")
         provider = self.auth_providers.get(provider_name)
@@ -302,22 +304,16 @@ class AuthenticationManager:
         """Record a failed authentication attempt."""
         self.credential_store.record_failed_attempt(identity)
 
-    def validate_credentials(self, credentials: Dict) -> Tuple[bool, str]:
-        """Validate credentials format for password-based authentication."""
-        identity = credentials.get("identity")
-        password = credentials.get("secret")
-        ip_address = credentials.get("ip_address")
-        user_agent = credentials.get("user_agent")
-
-        if not identity or not password:
-            return False, "Missing identity or password"
-
-        return True, ""
-
     def _password_authenticate(self, credentials: Dict) -> Optional[Dict]:
         """
         Password-based authentication handler.
         Returns both access and refresh tokens.
+        
+        Args:
+            credentials: Dictionary containing identity and secret (password)
+            
+        Returns:
+            Optional[Dict]: Authentication result with tokens if successful, None otherwise
         """
         identity = credentials.get("identity")
         password = credentials.get("secret")

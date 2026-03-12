@@ -1,25 +1,47 @@
 """
 LLM-based Security Log Analysis
+
+This module provides optional LLM-based security analysis.
+LLM dependencies are optional and the module will work without them.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 import json
-import openai
-import anthropic
-import google.cloud.aiplatform as vertexai
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+
+# Optional LLM imports - will be None if not installed
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    openai = None
+    OPENAI_AVAILABLE = False
+
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None
+    ANTHROPIC_AVAILABLE = False
+
+try:
+    import google.cloud.aiplatform as vertexai
+    VERTEXAI_AVAILABLE = True
+except ImportError:
+    vertexai = None
+    VERTEXAI_AVAILABLE = False
 
 @dataclass
 class AnalysisResult:
     """Result of LLM security analysis"""
-    threat_level: str  # low, medium, high, critical
-    confidence: float  # 0.0 to 1.0
-    analysis: str  # Detailed analysis
-    recommendations: List[str]  # List of recommended actions
-    patterns_identified: List[str]  # List of identified attack patterns
-    false_positive_probability: float  # 0.0 to 1.0
+    threat_level: str = "medium"  # low, medium, high, critical
+    confidence: float = 0.5  # 0.0 to 1.0
+    analysis: str = ""  # Detailed analysis
+    recommendations: List[str] = field(default_factory=list)  # List of recommended actions
+    patterns_identified: List[str] = field(default_factory=list)  # List of identified attack patterns
+    false_positive_probability: float = 0.5  # 0.0 to 1.0
 
 class LLMProvider(ABC):
     """Base class for LLM providers"""
@@ -56,6 +78,8 @@ class OpenAIProvider(LLMProvider):
     
     def __init__(self, config: Dict):
         """Initialize OpenAI provider"""
+        if not OPENAI_AVAILABLE:
+            raise ImportError("OpenAI library not available. Install with: pip install openai")
         openai.api_key = config["api_key"]
         self.model = config.get("model", "gpt-4")
         self.temperature = config.get("temperature", 0.2)
@@ -86,14 +110,16 @@ class AnthropicProvider(LLMProvider):
     
     def __init__(self, config: Dict):
         """Initialize Anthropic provider"""
-        self.client = anthropic.Client(api_key=config["api_key"])
+        if not ANTHROPIC_AVAILABLE:
+            raise ImportError("Anthropic library not available. Install with: pip install anthropic")
+        client = anthropic.Client(api_key=config["api_key"])
         self.model = config.get("model", "claude-2")
         self.max_tokens = config.get("max_tokens", 1000)
 
     def analyze_security_event(self, event_data: Dict) -> AnalysisResult:
         """Analyze security event using Anthropic Claude"""
         try:
-            response = self.client.messages.create(
+            response = client.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
                 messages=[{
@@ -112,6 +138,8 @@ class VertexAIProvider(LLMProvider):
     
     def __init__(self, config: Dict):
         """Initialize Vertex AI provider"""
+        if not VERTEXAI_AVAILABLE:
+            raise ImportError("Vertex AI library not available. Install with: pip install google-cloud-aiplatform")
         vertexai.init(
             project=config["project_id"],
             location=config["location"]
@@ -138,7 +166,7 @@ class VertexAIProvider(LLMProvider):
 class LLMAnalyzer:
     """Main class for LLM-based security analysis"""
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Optional[Dict] = None):
         """
         Initialize LLM analyzer with configuration
         
@@ -147,18 +175,23 @@ class LLMAnalyzer:
         - api_key: API key for the provider
         - model: Model name
         - backup_providers: List of backup providers
-        """
-        self.config = config
-        self.providers: Dict[str, LLMProvider] = {}
         
-        # Initialize primary provider
-        provider_type = config["provider"]
-        self.providers[provider_type] = self._create_provider(provider_type, config)
+        If no config is provided, the analyzer will work in fallback mode
+        without LLM-based analysis.
+        """
+        self.config = config or {}
+        self.providers: Dict[str, LLMProvider] = {}
+        self.logger = logging.getLogger(__name__)
+        
+        # Initialize primary provider if configured
+        provider_type = self.config.get("provider")
+        if provider_type:
+            self.providers[provider_type] = self._create_provider(provider_type, self.config)
         
         # Initialize backup providers
-        for backup in config.get("backup_providers", []):
+        for backup in self.config.get("backup_providers", []):
             if backup != provider_type:
-                self.providers[backup] = self._create_provider(backup, config)
+                self.providers[backup] = self._create_provider(backup, self.config)
 
     def _create_provider(self, provider_type: str, config: Dict) -> LLMProvider:
         """Create a provider instance based on type"""
@@ -181,10 +214,14 @@ class LLMAnalyzer:
         Returns:
             AnalysisResult if successful, None if all providers fail
         """
+        if not self.config:
+            self.logger.warning("No LLM configuration provided. Skipping analysis.")
+            return None
+            
         errors = []
         
         # Try primary provider first
-        primary_provider = self.config["provider"]
+        primary_provider = self.config.get("provider")
         try:
             return self.providers[primary_provider].analyze_security_event(event_data)
         except Exception as e:
@@ -198,7 +235,7 @@ class LLMAnalyzer:
                 errors.append(f"{backup} failed: {str(e)}")
         
         # All providers failed
-        logging.error(f"All LLM providers failed: {'; '.join(errors)}")
+        self.logger.error(f"All LLM providers failed: {'; '.join(errors)}")
         return None
 
     def _parse_analysis(self, analysis_text: str) -> AnalysisResult:
@@ -208,8 +245,8 @@ class LLMAnalyzer:
         lines = analysis_text.split("\n")
         threat_level = "medium"  # default
         confidence = 0.5  # default
-        recommendations = []
-        patterns = []
+        recommendations: List[str] = []
+        patterns: List[str] = []
         false_positive_prob = 0.5  # default
         
         for line in lines:

@@ -6,11 +6,12 @@ ML dependencies are optional and the module will work without them.
 """
 
 from typing import Dict, List, Optional, Set, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
 from collections import defaultdict
 import ipaddress
+import threading
 
 # Optional ML imports - will be None if not installed
 try:
@@ -37,33 +38,33 @@ except ImportError:
 @dataclass
 class UserBehaviorProfile:
     """User behavior profile for anomaly detection"""
-    typical_access_times: List[int]  # Hour of day (0-23)
-    typical_locations: Set[str]  # Country codes
-    typical_devices: Set[str]  # Device fingerprints
-    typical_resources: Set[str]  # Resource paths
-    access_patterns: Dict[str, float]  # Resource:frequency
-    average_session_duration: float
-    typical_request_rate: float
-    last_known_ip: Optional[str]
+    typical_access_times: List[int] = field(default_factory=list)  # Hour of day (0-23)
+    typical_locations: Set[str] = field(default_factory=set)  # Country codes
+    typical_devices: Set[str] = field(default_factory=set)  # Device fingerprints
+    typical_resources: Set[str] = field(default_factory=set)  # Resource paths
+    access_patterns: Dict[str, float] = field(default_factory=dict)  # Resource:frequency
+    average_session_duration: float = 0.0
+    typical_request_rate: float = 0.0
+    last_known_ip: Optional[str] = None
     risk_score: float = 0.0
 
 @dataclass
 class NetworkBehaviorProfile:
     """Network behavior profile for anomaly detection"""
-    typical_protocols: Set[str]
-    typical_ports: Set[int]
-    bandwidth_patterns: Dict[str, float]  # Hour:bandwidth
-    connection_patterns: Dict[str, int]  # Hour:connections
-    known_peer_ips: Set[str]
-    typical_packet_sizes: List[int]
-    typical_flow_duration: float
+    typical_protocols: Set[str] = field(default_factory=set)
+    typical_ports: Set[int] = field(default_factory=set)
+    bandwidth_patterns: Dict[str, float] = field(default_factory=dict)  # Hour:bandwidth
+    connection_patterns: Dict[str, int] = field(default_factory=dict)  # Hour:connections
+    known_peer_ips: Set[str] = field(default_factory=set)
+    typical_packet_sizes: List[int] = field(default_factory=list)
+    typical_flow_duration: float = 0.0
     risk_score: float = 0.0
 
 class BehavioralAnalytics:
     """Advanced behavioral analytics system with optional ML support"""
     
-    def __init__(self, config: Dict):
-        self.config = config
+    def __init__(self, config: Optional[Dict] = None):
+        self.config = config or {}
         self.logger = logging.getLogger(__name__)
         
         # Check if ML libraries are available
