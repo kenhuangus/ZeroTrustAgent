@@ -175,7 +175,7 @@ class AuthenticationManager:
             "issued",
             jti,
             identity,
-            {"type": token_type}
+            {"type": token_type, **claims, "identity": identity}
         )
 
         return jwt.encode(payload, self.secret_key, algorithm="HS256")
@@ -387,7 +387,10 @@ class AuthenticationManager:
             return None
 
         identity = claims["sub"]
-        new_access_token = self.generate_token(identity, "access")
+        # Pass provider info for logging
+        new_access_token = self.generate_token(
+            identity, "access", {"provider": "refresh"}
+        )
 
         return {
             "access_token": new_access_token,

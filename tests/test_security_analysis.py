@@ -197,7 +197,7 @@ class TestSecurityMonitor(unittest.TestCase):
         for alert in alerts:
             self.assertEqual(alert['severity'], 'high')
             self.assertIn('timestamp', alert)
-            self.assertIn('event_type', alert)
+            self.assertIn('type', alert)
             self.assertIn('details', alert)
 
 if __name__ == '__main__':

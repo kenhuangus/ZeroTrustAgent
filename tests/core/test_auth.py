@@ -474,7 +474,7 @@ class TestAuthenticationManager(unittest.TestCase):
         # Here's a more direct test of generate_token's logging
         self.auth_manager.generate_token("log_user", "access", {"custom_claim": "value"})
         self.auth_manager.security_logger.log_token_event.assert_called_with(
-            "issued", ANY, "log_user", {"type": "access", "custom_claim": "value"}
+            "issued", ANY, "log_user", {"type": "access", "custom_claim": "value", "identity": "log_user"}
         )
 
 if __name__ == '__main__':

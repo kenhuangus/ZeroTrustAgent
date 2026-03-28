@@ -7,6 +7,7 @@ GeoIP and scheduling dependencies are optional and the module will work without 
 
 import os
 import time
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict
@@ -170,6 +171,8 @@ class SecurityMonitor:
         self.trusted_ips = self._load_ip_lists(self.config.ip_whitelist)
         self.auth_failures = defaultdict(list)
         self.session_cache = {}
+        self.alerts = []
+        self.events = []
         
         # Alert thresholds
         self.alert_thresholds = self.config.alert_thresholds
@@ -243,7 +246,7 @@ class SecurityMonitor:
             pass
         return None
 
-    def record_event(self, event_type: str, details: Dict, severity: str = "info") -> None:
+    def record_event(self, event_type: str, details: Dict, severity: str = "info") -> Optional[str]:
         """
         Record a security event
         
@@ -252,6 +255,7 @@ class SecurityMonitor:
             details: Event details dictionary
             severity: Event severity (info, warning, error, critical)
         """
+        
         # Extract common fields
         source_ip = details.get("ip_address")
         user_agent = details.get("user_agent")
@@ -299,6 +303,15 @@ class SecurityMonitor:
 
         # Check alert thresholds
         self._check_alert_thresholds(event_type)
+        
+        # Trigger alert for high severity events
+        if severity in ["high", "critical"]:
+            self._trigger_alert(f"event_{event_type}", details, severity)
+        
+        # Return event ID from the stored event
+        if self.events:
+            return self.events[-1].get("id")
+        return None
 
     def _analyze_event(self, event: SecurityEvent) -> None:
         """Analyze event for suspicious patterns"""
@@ -316,7 +329,7 @@ class SecurityMonitor:
                         "ip": event.source_ip,
                         "count": len(recent_failures),
                         "window": "1 hour"
-                    })
+                    }, "high")
 
             # Check threat intelligence score
             if event.threat_intel and event.threat_intel["abuse_score"] > 50:
@@ -324,7 +337,7 @@ class SecurityMonitor:
                 self._trigger_alert("high_threat_score", {
                     "ip": event.source_ip,
                     "score": event.threat_intel["abuse_score"]
-                })
+                }, "high")
 
         # Perform LLM analysis for suspicious events
         if (
@@ -376,7 +389,7 @@ class SecurityMonitor:
                         "event_data": event_data,
                         "analysis": analysis_result,
                         "automated_response": True
-                    })
+                    }, "high")
 
                     # Apply recommended actions
                     self._apply_llm_recommendations(
@@ -435,15 +448,19 @@ class SecurityMonitor:
                     "event_type": event_type,
                     "count": count,
                     "threshold": threshold
-                })
+                }, "high")
 
-    def _trigger_alert(self, alert_type: str, details: Dict) -> None:
+    def _trigger_alert(self, alert_type: str, details: Dict, severity: str = "high") -> None:
         """Trigger a security alert"""
         alert = {
             "timestamp": datetime.utcnow().isoformat(),
             "type": alert_type,
-            "details": details
+            "details": details,
+            "severity": severity
         }
+        
+        # Store alert
+        self.alerts.append(alert)
         
         # Log alert
         self.logger.error(f"Security Alert: {json.dumps(alert)}")
@@ -465,7 +482,14 @@ class SecurityMonitor:
             log_message["location"] = event.location_info
         if event.threat_intel:
             log_message["threat_intel"] = event.threat_intel
-
+        
+        # Store event
+        event_dict = {
+            "id": str(uuid.uuid4()),
+            **log_message
+        }
+        self.events.append(event_dict)
+        
         if event.severity == "critical":
             self.logger.critical(json.dumps(log_message))
         elif event.severity == "error":
@@ -482,6 +506,57 @@ class SecurityMonitor:
     def is_suspicious(self, ip: str) -> bool:
         """Check if an IP is marked as suspicious"""
         return ip in self.suspicious_ips
+
+    def get_alerts(self, severity: Optional[str] = None) -> List[Dict]:
+        """Get security alerts, optionally filtered by severity
+        
+        Args:
+            severity: Optional severity filter ('low', 'medium', 'high', 'critical')
+            
+        Returns:
+            List of alert dictionaries
+        """
+        if severity is None:
+            return list(self.alerts)
+        return [alert for alert in self.alerts if alert.get("severity") == severity]
+
+    def get_events(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        event_type: Optional[str] = None,
+        severity: Optional[str] = None
+    ) -> List[Dict]:
+        """Get security events with optional filtering
+        
+        Args:
+            start_time: Filter events after this time
+            end_time: Filter events before this time
+            event_type: Filter by event type
+            severity: Filter by severity level
+            
+        Returns:
+            List of event dictionaries
+        """
+        events = list(self.events)
+        
+        if start_time:
+            start_ts = start_time.timestamp()
+            events = [e for e in events if e.get("timestamp") and 
+                      datetime.fromisoformat(e["timestamp"]).timestamp() >= start_ts]
+        
+        if end_time:
+            end_ts = end_time.timestamp()
+            events = [e for e in events if e.get("timestamp") and 
+                      datetime.fromisoformat(e["timestamp"]).timestamp() <= end_ts]
+        
+        if event_type:
+            events = [e for e in events if e.get("event_type") == event_type]
+        
+        if severity:
+            events = [e for e in events if e.get("severity") == severity]
+        
+        return events
 
     def _cleanup_old_data(self) -> None:
         """Clean up old data from caches and counters"""
