@@ -65,8 +65,10 @@ class TestZeroTrustAgentIntegration(unittest.TestCase):
     def test_full_authentication_flow(self, mock_token_store, mock_credential_store):
         """Test complete authentication flow"""
         # Setup mocks
+        # Use a proper config dict for hash_password
+        auth_mgr = AuthenticationManager({"secret_key": "test_secret"})
         mock_credential_store.return_value.get_credentials.return_value = {
-            "password_hash": AuthenticationManager("").hash_password("test_password")
+            "password_hash": auth_mgr.hash_password("test_password")
         }
         mock_credential_store.return_value.get_failed_attempts.return_value = 0
         mock_token_store.return_value.is_token_valid.return_value = True
@@ -116,8 +118,10 @@ class TestZeroTrustAgentIntegration(unittest.TestCase):
     def test_crewai_adapter_integration(self, mock_token_store, mock_credential_store):
         """Test CrewAI adapter integration"""
         # Setup mocks
+        # Use a proper config dict for hash_password
+        auth_mgr = AuthenticationManager({"secret_key": "test_secret"})
         mock_credential_store.return_value.get_credentials.return_value = {
-            "password_hash": AuthenticationManager("").hash_password("test_password")
+            "password_hash": auth_mgr.hash_password("test_password")
         }
         mock_credential_store.return_value.get_failed_attempts.return_value = 0
         mock_token_store.return_value.is_token_valid.return_value = True

@@ -41,16 +41,19 @@ class SecurityLogger:
 
     def log_authentication_attempt(self, identity: str, success: bool, 
                                  ip_address: Optional[str] = None,
-                                 user_agent: Optional[str] = None) -> None:
+                                 user_agent: Optional[str] = None,
+                                 details: Optional[Dict] = None) -> None:
         """Log an authentication attempt"""
-        details = {
+        details_dict = {
             'identity': identity,
             'success': success,
             'ip_address': ip_address,
             'user_agent': user_agent
         }
+        if details:
+            details_dict.update(details)
         level = logging.INFO if success else logging.WARNING
-        self.logger.log(level, self._format_event('authentication_attempt', details))
+        self.logger.log(level, self._format_event('authentication_attempt', details_dict))
 
     def log_password_change(self, identity: str, success: bool,
                           forced: bool = False) -> None:
@@ -76,3 +79,20 @@ class SecurityLogger:
                          level: int = logging.INFO) -> None:
         """Log a generic security event"""
         self.logger.log(level, self._format_event(event_type, details))
+    
+    # Convenience methods for direct logging access
+    def info(self, message: str) -> None:
+        """Log info level message"""
+        self.logger.info(message)
+    
+    def warning(self, message: str) -> None:
+        """Log warning level message"""
+        self.logger.warning(message)
+    
+    def error(self, message: str) -> None:
+        """Log error level message"""
+        self.logger.error(message)
+    
+    def critical(self, message: str) -> None:
+        """Log critical level message"""
+        self.logger.critical(message)

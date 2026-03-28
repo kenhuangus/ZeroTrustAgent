@@ -73,6 +73,11 @@ class AuthenticationManager:
             Optional[Dict]: Authentication result with tokens if successful, None otherwise
         """
         provider_name = credentials.get("provider", "password")
+        
+        # Handle password provider specially since it's a method reference
+        if provider_name == "password":
+            return self._password_authenticate(credentials)
+        
         provider = self.auth_providers.get(provider_name)
         
         if not provider:
@@ -321,12 +326,17 @@ class AuthenticationManager:
         user_agent = credentials.get("user_agent")
 
         if not identity or not password:
+            self.security_logger.log_authentication_attempt(
+                "unknown", False, ip_address, user_agent,
+                details={"error": "Missing identity or password", "provider": "password"}
+            )
             return None
 
         # Check for account lockout
         if self.is_account_locked(identity):
             self.security_logger.log_authentication_attempt(
-                identity, False, ip_address, user_agent
+                identity, False, ip_address, user_agent,
+                details={'error': 'Account locked', 'provider': 'password'}
             )
             return None
 

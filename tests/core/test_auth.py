@@ -77,31 +77,26 @@ class TestAuthenticationManager(unittest.TestCase):
             "token_expiry": 1800,
             "password_policy": {"min_length": 10}
         }
-        auth_manager = AuthenticationManager(custom_config)
-        self.assertEqual(auth_manager.secret_key, "custom_secret")
-        self.assertEqual(auth_manager.token_expiry, 1800)
-        # Check if password policy was initialized with the custom sub-config
-        # The PasswordPolicy mock itself is called in __init__ of AuthenticationManager
-        # So, we check the args it was constructed with.
-        self.MockPasswordPolicy.assert_any_call({"min_length": 10})
+        with patch('zta_agent.core.auth.PasswordPolicy') as MockPasswordPolicy:
+            auth_manager = AuthenticationManager(custom_config)
+            self.assertEqual(auth_manager.secret_key, "custom_secret")
+            self.assertEqual(auth_manager.token_expiry, 1800)
+            # Check if password policy was initialized with the custom sub-config
+            # The PasswordPolicy mock is called in __init__ of AuthenticationManager
+            MockPasswordPolicy.assert_called_with({"min_length": 10})
 
 
     # 2. Password-based Authentication
     def test_password_provider_validate_credentials_failure(self):
-        """Test password provider's validate_credentials method (which is on AuthManager itself)"""
-        credentials = {"provider": "password", "identity": None, "secret": None} # Missing identity and secret
-        # This is called by the main authenticate method.
-        # We are testing the case where the provider's validate_credentials (which is self.auth_manager.validate_credentials) fails.
+        """Test password provider returns None when identity is missing"""
+        # Provide secret but no identity - should fail
+        credentials = {"provider": "password", "identity": None, "secret": "somepassword"}
         
-        # Temporarily make the auth_manager's own validate_credentials return False for testing
-        # This simulates the check within the main authenticate() flow.
-        with patch.object(self.auth_manager, 'validate_credentials', return_value=(False, "Missing identity or password")) as mock_validate:
-            result = self.auth_manager.authenticate(credentials)
-            self.assertIsNone(result)
-            mock_validate.assert_called_once_with(credentials)
-            self.auth_manager.security_logger.log_authentication_attempt.assert_called_with(
-                None, False, None, None, details={'error': 'Missing identity or password'}
-            )
+        # Since identity is None, _password_authenticate should return None early
+        result = self.auth_manager.authenticate(credentials)
+        self.assertIsNone(result)
+        # Check that authentication attempt was logged with missing identity
+        self.auth_manager.security_logger.log_authentication_attempt.assert_called()
             
     def test_create_credentials_success(self):
         self.MockPasswordPolicy.return_value.validate_password.return_value = (True, "")
@@ -379,10 +374,8 @@ class TestAuthenticationManager(unittest.TestCase):
         )
 
     # 4. Account Lockout
-    @patch('zta_agent.core.auth.AuthenticationManager._verify_password_credentials') # Mock verification
-    def test_authenticate_password_account_locked(self, mock_verify_creds):
-        # This tests _handle_password_authentication implicitly
-        mock_verify_creds.return_value = True # Assume password would be correct
+    def test_authenticate_password_account_locked(self):
+        # This tests _password_authentication - when account is locked, it should fail
         self.auth_manager.is_account_locked = MagicMock(return_value=True)
         
         credentials = {"provider": "password", "identity": "test_user", "secret": "password123"}

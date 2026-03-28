@@ -105,6 +105,49 @@ class BehavioralAnalytics:
             "categorical": self._extract_categorical_features
         }
 
+    def _extract_temporal_features(self, event_data: Dict) -> List[float]:
+        """Extract temporal features from event data"""
+        features = []
+        if "timestamp" in event_data:
+            dt = datetime.fromtimestamp(event_data["timestamp"])
+            features.append(dt.hour / 24.0)  # Hour of day normalized
+            features.append(dt.weekday() / 7.0)  # Day of week normalized
+            features.append(dt.month / 12.0)  # Month normalized
+        return features
+    
+    def _extract_spatial_features(self, event_data: Dict) -> List[float]:
+        """Extract spatial features from event data"""
+        features = []
+        if "location_info" in event_data:
+            loc = event_data["location_info"]
+            # Simple encoding - could be enhanced
+            features.append(1.0 if loc.get("country") else 0.0)
+            features.append(1.0 if loc.get("city") else 0.0)
+        if "ip_address" in event_data:
+            features.append(1.0)  # Has IP
+        return features
+    
+    def _extract_volumetric_features(self, event_data: Dict) -> List[float]:
+        """Extract volumetric features from event data"""
+        features = []
+        if "request_size" in event_data:
+            features.append(event_data["request_size"] / 1000000.0)  # Normalize
+        if "response_size" in event_data:
+            features.append(event_data["response_size"] / 1000000.0)  # Normalize
+        if "duration" in event_data:
+            features.append(event_data["duration"] / 3600.0)  # Normalize to hours
+        return features
+    
+    def _extract_categorical_features(self, event_data: Dict) -> List[float]:
+        """Extract categorical features from event data"""
+        features = []
+        if "action" in event_data:
+            # Simple hash-based encoding
+            features.append(hash(event_data["action"]) % 10 / 10.0)
+        if "status" in event_data:
+            features.append(hash(event_data["status"]) % 10 / 10.0)
+        return features
+
     def _build_sequence_model(self):
         """Build neural network for sequence prediction"""
         if not ML_TF_AVAILABLE:

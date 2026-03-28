@@ -73,7 +73,10 @@ class ThreatHunter:
         """Load MITRE ATT&CK framework data"""
         try:
             # Load from local cache if available
-            cache_file = self.config["mitre_cache_file"]
+            # Support both 'mitre_cache_file' and 'mitre.cache_file' formats
+            cache_file = self.config.get("mitre_cache_file") or self.config.get("mitre", {}).get("cache_file")
+            if not cache_file:
+                return
             with open(cache_file, 'r') as f:
                 data = json.load(f)
                 
@@ -127,8 +130,10 @@ class ThreatHunter:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-            with open(self.config["mitre_cache_file"], 'w') as f:
-                json.dump(cache_data, f, indent=2)
+            cache_file = self.config.get("mitre_cache_file") or self.config.get("mitre", {}).get("cache_file")
+            if cache_file:
+                with open(cache_file, 'w') as f:
+                    json.dump(cache_data, f, indent=2)
                 
         except Exception as e:
             self.logger.error(f"Failed to download MITRE data: {str(e)}")
