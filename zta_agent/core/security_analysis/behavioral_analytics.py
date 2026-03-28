@@ -74,6 +74,28 @@ class BehavioralAnalytics:
                 "simplified rules-based detection without ML models."
             )
         
+        # Initialize models and profiles
+        self._initialize_models()
+
+    def _get_hour_from_timestamp(self, event_data: Dict) -> int:
+        """Extract hour from event timestamp, handling both string and numeric formats"""
+        timestamp = event_data.get("timestamp")
+        if timestamp is None:
+            return 12  # Default to noon
+        if isinstance(timestamp, str):
+            try:
+                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                return dt.hour
+            except Exception:
+                return 12
+        else:
+            try:
+                return datetime.fromtimestamp(timestamp).hour
+            except Exception:
+                return 12
+
+    def _initialize_models(self) -> None:
+        """Initialize ML models"""
         # Initialize ML models only if available
         self.isolation_forest = None
         self.scaler = None
@@ -211,7 +233,7 @@ class BehavioralAnalytics:
                 self.user_profiles[user_id] = profile
 
             # Use ML-based detection if available, otherwise use rules-based
-            if ML_AVAILABLE and self.isolation_forest is not None:
+            if ML_AVAILABLE and self.isolation_forest is not None and self.scaler is not None and hasattr(self.scaler, 'n_features_in_'):
                 # Extract features
                 features = self._extract_user_features(event_data, profile)
                 
@@ -299,7 +321,12 @@ class BehavioralAnalytics:
         risk_score = 0.0
         
         # Time-based risk
-        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        timestamp = event_data["timestamp"]
+        if isinstance(timestamp, str):
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        else:
+            dt = datetime.fromtimestamp(timestamp)
+        hour = dt.hour
         if hour < 6 or hour > 22:
             risk_score += 0.1
         
@@ -346,14 +373,14 @@ class BehavioralAnalytics:
         
         # Bandwidth-based risk
         if "bandwidth" in event_data:
-            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            hour = str(self._get_hour_from_timestamp(event_data))
             typical = profile.bandwidth_patterns.get(hour, 0)
             if event_data["bandwidth"] > typical * 2 and typical > 0:
                 risk_score += 0.15
         
         # Connection-based risk
         if "connections" in event_data:
-            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            hour = str(self._get_hour_from_timestamp(event_data))
             typical = profile.connection_patterns.get(hour, 0)
             if event_data["connections"] > typical * 2 and typical > 0:
                 risk_score += 0.1
@@ -420,7 +447,7 @@ class BehavioralAnalytics:
             
         # Bandwidth features
         current_bandwidth = event_data.get("bandwidth", 0)
-        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        hour = self._get_hour_from_timestamp(event_data)
         typical_bandwidth = profile.bandwidth_patterns.get(str(hour), 0)
         features.append(
             current_bandwidth / typical_bandwidth if typical_bandwidth > 0 else 0
@@ -482,7 +509,7 @@ class BehavioralAnalytics:
         anomalies = []
         
         # Time-based anomalies
-        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        hour = self._get_hour_from_timestamp(event_data)
         if hour not in profile.typical_access_times:
             anomalies.append("unusual_access_time")
             
@@ -539,14 +566,14 @@ class BehavioralAnalytics:
             
         # Bandwidth anomalies
         if "bandwidth" in event_data:
-            hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+            hour = self._get_hour_from_timestamp(event_data)
             typical = profile.bandwidth_patterns.get(str(hour), 0)
             if event_data["bandwidth"] > typical * 2 and typical > 0:
                 anomalies.append("high_bandwidth")
                 
         # Connection anomalies
         if "connections" in event_data:
-            hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+            hour = self._get_hour_from_timestamp(event_data)
             typical = profile.connection_patterns.get(str(hour), 0)
             if event_data["connections"] > typical * 2 and typical > 0:
                 anomalies.append("high_connections")
@@ -585,17 +612,21 @@ class BehavioralAnalytics:
     ) -> None:
         """Update user behavior profile with new data"""
         # Update access times
-        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        hour = self._get_hour_from_timestamp(event_data)
         if hour not in profile.typical_access_times:
             profile.typical_access_times.append(hour)
             
         # Update locations
         if "location_info" in event_data:
             profile.typical_locations.add(event_data["location_info"]["country"])
+        elif "location" in event_data:
+            profile.typical_locations.add(event_data["location"])
             
         # Update devices
         if "user_agent" in event_data:
             profile.typical_devices.add(event_data["user_agent"])
+        elif "device" in event_data:
+            profile.typical_devices.add(event_data["device"])
             
         # Update resources
         if "resource" in event_data:
@@ -631,13 +662,13 @@ class BehavioralAnalytics:
             
         # Update bandwidth patterns
         if "bandwidth" in event_data:
-            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            hour = str(self._get_hour_from_timestamp(event_data))
             current = profile.bandwidth_patterns.get(hour, 0)
             profile.bandwidth_patterns[hour] = 0.9 * current + 0.1 * event_data["bandwidth"]
             
         # Update connection patterns
         if "connections" in event_data:
-            hour = str(datetime.fromtimestamp(event_data["timestamp"]).hour)
+            hour = str(self._get_hour_from_timestamp(event_data))
             current = profile.connection_patterns.get(hour, 0)
             profile.connection_patterns[hour] = int(
                 0.9 * current + 0.1 * event_data["connections"]
@@ -693,6 +724,20 @@ class BehavioralAnalytics:
     def get_user_profile(self, user_id: str) -> Optional[UserBehaviorProfile]:
         """Get user behavior profile"""
         return self.user_profiles.get(user_id)
+
+    def update_user_profile(self, user_id: str, event_data: Dict) -> None:
+        """Update user behavior profile with new event data
+        
+        Args:
+            user_id: User identifier
+            event_data: Event data to update profile with
+        """
+        with self.profile_lock:
+            profile = self.user_profiles.get(user_id)
+            if not profile:
+                profile = self._create_user_profile()
+                self.user_profiles[user_id] = profile
+            self._update_user_profile(profile, event_data)
 
     def get_network_profile(self, network_id: str) -> Optional[NetworkBehaviorProfile]:
         """Get network behavior profile"""

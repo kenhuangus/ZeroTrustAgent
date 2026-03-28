@@ -63,10 +63,8 @@ class TestBehavioralAnalytics(unittest.TestCase):
         profile = self.analytics.get_user_profile(user_id)
         
         self.assertIsNotNone(profile)
-        self.assertIn('locations', profile)
-        self.assertIn('devices', profile)
-        self.assertIn('US-NYC', profile['locations'])
-        self.assertIn('Windows-Chrome', profile['devices'])
+        self.assertIn('US-NYC', profile.typical_locations)
+        self.assertIn('Windows-Chrome', profile.typical_devices)
 
 class TestThreatHunter(unittest.TestCase):
     def setUp(self):
