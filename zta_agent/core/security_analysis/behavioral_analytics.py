@@ -369,7 +369,12 @@ class BehavioralAnalytics:
         features = []
         
         # Time-based features
-        hour = datetime.fromtimestamp(event_data["timestamp"]).hour
+        timestamp = event_data["timestamp"]
+        if isinstance(timestamp, str):
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        else:
+            dt = datetime.fromtimestamp(timestamp)
+        hour = dt.hour
         features.append(hour / 24.0)  # Normalize to 0-1
         
         # Location-based features

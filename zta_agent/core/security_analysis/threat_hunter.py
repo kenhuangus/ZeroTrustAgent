@@ -186,7 +186,10 @@ class ThreatHunter:
         """Initialize threat intelligence feeds"""
         feeds = {}
         
-        for feed_config in self.config["ioc_feeds"]:
+        # Handle both nested and flat config formats
+        ioc_feeds_config = self.config.get("ioc_feeds") or self.config.get("threat_hunting", {}).get("ioc_feeds", [])
+        
+        for feed_config in ioc_feeds_config:
             try:
                 feed_type = feed_config["type"]
                 if feed_type == "alienvault":
@@ -325,6 +328,38 @@ class ThreatHunter:
                     ])
             except Exception as e:
                 self.logger.error(f"IOC feed check failed for {feed_name}: {str(e)}")
+                
+        return matches
+
+    def check_ioc(self, value: str, ioc_type: str = 'ip') -> List[Dict]:
+        """Public method to check an IOC value against all feeds
+        
+        Args:
+            value: The IOC value to check (e.g., IP address, domain, hash)
+            ioc_type: Type of IOC ('ip', 'domain', 'hash', etc.)
+            
+        Returns:
+            List of matches with type and confidence
+        """
+        matches = []
+        
+        # Build event data for checking
+        event_data = {}
+        if ioc_type == 'ip':
+            event_data['ip_address'] = value
+        elif ioc_type == 'domain':
+            event_data['domain'] = value
+        elif ioc_type == 'hash':
+            event_data['file_hash'] = value
+            
+        # Check against all configured feeds
+        for feed_name, feed in self.ioc_feeds.items():
+            try:
+                feed_matches = feed.check_indicators({ioc_type: value})
+                if feed_matches:
+                    matches.extend(feed_matches)
+            except Exception as e:
+                self.logger.error(f"Error checking IOC {value}: {str(e)}")
                 
         return matches
 
